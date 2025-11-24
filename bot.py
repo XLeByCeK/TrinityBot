@@ -34,6 +34,10 @@ def webhook():
         if payload == 'menu_2':
             
             commands.responseMenu2(data)
+            
+        if payload == 'send_message':
+
+            commands.send_message(data)
 
     return jsonify({'ok': True})
 

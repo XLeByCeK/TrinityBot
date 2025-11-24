@@ -9,8 +9,10 @@ def getSenderUserId(data):
 
 def getRecipientUserId(data):
 
+
     msg = data.get('message', {})
     recipient =msg.get('recipient', {})
     user_id = recipient.get('user_id')
 
     return user_id
+
