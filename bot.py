@@ -13,9 +13,14 @@ def webhook():
     print("WEBHOOK:", data)
 
     update_type = data.get('update_type')
+    msg_text = data['message']['body']['text']
 
-    if update_type == 'message_created':
+    if update_type == 'message_created' and msg_text == 'Отправь файл':
         
+        commands.send_message_with_file(data)
+
+    if update_type == 'message_created' and msg_text != 'Отправь файл':
+
         commands.showMenuBtn(data)
 
     if update_type == 'message_callback':
@@ -35,9 +40,6 @@ def webhook():
             
             commands.responseMenu2(data)
             
-        if payload == 'send_message':
-
-            commands.send_message(data)
 
     return jsonify({'ok': True})
 
