@@ -1,7 +1,6 @@
-import os
+import chatshandler
 from flask import Flask, request, jsonify
 import api
-import commands
 
 
 app = Flask(__name__)
@@ -14,31 +13,21 @@ def webhook():
 
     update_type = data.get('update_type')
     msg_text = data['message']['body']['text']
+    chat_type = data['message']['recipient']['chat_type']
 
-    if update_type == 'message_created' and msg_text == 'Отправь файл':
+    attachments = data['message']['body'].get('attachments', [])
+    attachment_type = None
+
+    if attachments:
+        attachment_type = attachments[0].get('type')
+
+    
+    if chat_type == 'chat':
         
-        commands.send_message_with_file(data)
+        chatshandler.group_chats(data, update_type, msg_text, attachment_type)
+    else:
 
-    if update_type == 'message_created' and msg_text != 'Отправь файл':
-
-        commands.showMenuBtn(data)
-
-    if update_type == 'message_callback':
-        
-        callback = data.get('callback', {})
-        payload = callback.get('payload', {})
-
-        if payload == 'open_menu':
-            
-            commands.showMenu(data)
-
-        if payload == 'menu_1':
-            
-            commands.responseMenu1(data)
-
-        if payload == 'menu_2':
-            
-            commands.responseMenu2(data)
+        chatshandler.private_chats(data, update_type, msg_text, attachment_type)
             
 
     return jsonify({'ok': True})
@@ -46,6 +35,6 @@ def webhook():
 
 if __name__ == "__main__":
 
-    api.register_webhook()
+   api.register_webhook()
 
-    app.run(port=8443, debug=True)
+   app.run(port=8443, debug=True)

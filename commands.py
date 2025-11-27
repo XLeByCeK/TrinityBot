@@ -24,12 +24,15 @@ def showMenuBtn(data):
             ]
         }
     
-    api.api_request('POST', f'/messages?user_id={getData.getSenderUserId(data)}', json=body)
+    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
 
 def showMenu(data):
 
     body = {
-                "text": "Выберите пункт или напишите 'Отправь файл' для отправки файла",
+                "text": "Выберите пункт или напишите: "
+                "'Отправь файл' для отправки файла. "
+                "'Закрепи сообщение' для того чтобы закрепить сообщение. "
+                "Отправь картинку чтобы изменить аватарку чата.",
                 "attachments": [
                     {
                         "type": "inline_keyboard",
@@ -55,15 +58,15 @@ def showMenu(data):
                 ]
             }
     
-    api.api_request('POST', f'/messages?user_id={getData.getRecipientUserId(data)}', json=body)
+    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
 
 def responseMenu1(data):
 
-    api.api_request('POST', f'/messages?user_id={getData.getRecipientUserId(data)}', json={"text": "Вы нажали Пункт 1"})
+    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json={"text": "Вы нажали Пункт 1"})
 
 def responseMenu2(data):
 
-    api.api_request('POST', f'/messages?user_id={getData.getRecipientUserId(data)}', json={"text": "Вы нажали Пункт 2"})
+    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json={"text": "Вы нажали Пункт 2"})
 
 def send_message_with_file(data):
 
@@ -95,3 +98,27 @@ def send_message_with_file(data):
             f"/messages?chat_id={getData.getChatId(data)}",
             json=body
         )
+    
+def pin_message(data):
+
+    message_id = getData.getMessageId(data)
+
+    body = {
+        "message_id": message_id
+    }
+
+    api.api_request('PUT', f'/chats/{getData.getChatId(data)}/pin', json=body)
+
+def chat_error_response(data):
+
+    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json={"text": "Эта функция доступна только  в групповых чатах"})
+
+def update_img(data):
+
+    url = data['message']['body']['attachments'][0]['payload']['url']
+
+    body = {
+        'icon': { "url": url }
+    }
+
+    api.api_request('PATCH', f'/chats/{getData.getChatId(data)}', json=body)
