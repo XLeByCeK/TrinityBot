@@ -1,5 +1,6 @@
 import api
 import getData
+import db
 
 def showMenuBtns(data):
 
@@ -62,6 +63,45 @@ def showMenuBtns(data):
         }
     
     api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+
+def beginWork(data):
+
+    body = {
+        "text": "Чтобы продолжить, мне нужно будет зарегистрировать вашу организацию. Введите ИНН(10 цифр):",
+        "attachments": [
+            {
+                "type": "inline_keyboard",
+                "payload": {
+                    "buttons": [
+                        [
+                            {
+                                "type": "callback",
+                                "text": "Ввести ИНН",
+                                "payload": "enter_inn"
+                            }
+                        ],
+                        [
+                            {
+                                "type": "callback",
+                                "text": "Назад",
+                                "payload": "back_to_main"
+                            }
+                        ]
+                    ]
+                }
+            }
+        ]
+    }
+
+    api.api_request("POST", f"/messages?chat_id={getData.getChatId(data)}", json=body)
+
+def askInn(data):
+
+    body = {
+        "text": "Введите ИНН вашей организации (10 или 12 цифр):"
+    }
+
+    api.api_request("POST", f"/messages?chat_id={getData.getChatId(data)}", json=body)
 
 def chooseReport(data):
 
@@ -433,6 +473,10 @@ def pin_message(data):
 def chat_error_response(data):
 
     api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json={"text": "Эта функция доступна только  в групповых чатах"})
+
+def inn_error_response(data):
+
+    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json={"text": "Ошибка регистрации организации. Попробуйте другой ИНН."})
 
 def update_img(data):
 

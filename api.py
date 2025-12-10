@@ -1,6 +1,7 @@
 import requests
 
 TOKEN = 'f9LHodD0cOL7zz1wHQSEmtBmHVM8JDoomUKgGOw71Ir5BKRLZ1eSlM94PU8Gq9_MnVUxVKpp1ZeBDdfICPQr'
+FNS_API_KEY = 'bb3bfb2af24807d9d4cb56a9a12ec6bb20aaf8a9'
 WEBHOOK_URL = "https://poetless-jamar-overdepressively.ngrok-free.dev/webhook"
 API_BASE = "https://platform-api.max.ru"
 
@@ -59,3 +60,45 @@ def api_request(method, path, json=None, files=None):
     resp = requests.request(method, url, headers=headers, json=json, files=files)
     resp.raise_for_status()
     return resp.json()
+
+def fetch_org_from_fns(inn):
+
+    url = f"https://api-fns.ru/api/multinfo?req={inn}&key={FNS_API_KEY}"
+
+    try:
+
+        resp = requests.get(url, timeout=10)
+
+        resp.raise_for_status()
+
+        data = resp.json()
+
+        if 'items' in data and data['items']:
+
+            item = data['items'][0]
+
+            if 'ЮЛ' in item:
+
+                org_data = item['ЮЛ']
+                name = org_data.get('НаимПолнЮЛ') or org_data.get('НаимСокрЮЛ')
+                is_active = org_data.get('Статус') == 'Действующее'
+
+            elif 'ИП' in item:
+
+                org_data = item['ИП']
+                name = org_data.get('ФИОПолн')
+                is_active = org_data.get('Статус') == 'Действующее'
+
+            else:
+
+                return None
+            
+            return {'name': name, 'is_active': is_active}
+        
+        return None
+    
+    except Exception as e:
+        
+        print(f"Error fetching from FNS API: {e}")
+
+        return None
