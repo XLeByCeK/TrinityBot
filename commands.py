@@ -204,7 +204,16 @@ def chat_error_response(data):
 
 def inn_error_response(data):
 
-    _send(get_data.get_chat_id(data), {"text": "Ошибка регистрации организации. Попробуйте другой ИНН."})
+    body = message(
+        "Похоже, что ИНН неверный.\n" 
+        "Пожалуйста, проверьте правильность вводимых данных и попробуйте еще раз.",
+        keyboard(
+            [btn_callback("Ввести ИНН еще раз", "enter_inn")],
+            [btn_callback("Вернуться в главное меню", "back_to_main")]
+        )
+    )
+
+    _send(get_data.get_chat_id(data), body)
 
 def update_img(data):
 

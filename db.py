@@ -162,3 +162,16 @@ def save_incoming_message(data: dict):
                 json.dumps(data, ensure_ascii=False)
 
             ))
+
+def get_organization_name(inn: int):
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+
+            cur.execute(
+                "SELECT name FROM organizations WHERE inn = %s",
+                (inn,)
+            )
+
+            result = cur.fetchone()
+            return result[0] if result else None

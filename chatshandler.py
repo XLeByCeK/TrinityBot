@@ -91,7 +91,13 @@ def private_chats(data, update_type, msg_text, attachment_type):
                     db.link_user_to_org(user_id, org_id)
                     db.link_org_to_chat(org_id, chat_id)
 
-                    api.api_request('POST', f'/messages?chat_id={chat_id}', json={"text": "Организация успешно зарегистрирована!"})
+                    name = db.get_organization_name(inn)
+
+                    api.api_request('POST', 
+                                    f'/messages?chat_id={chat_id}', 
+                                    json={"text": f"Отлично! Ваша организация {name}.\n"  
+                                                    "Теперь ценообразование Ваших закупок будет под надёжной защитой искусственного интеллекта.\n" 
+                                                    "Пожалуйста, выкладывайте файлы Ваших тендерных протоколов."})
 
                     commands.show_menu_btns(data)
                 else:
