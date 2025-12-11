@@ -1,489 +1,219 @@
 import api
-import getData
-import db
+import get_data
 
-def showMenuBtns(data):
+from ui_creator import (
+    message,
+    keyboard,
+    btn_callback,
+    btn_link
+)
 
-    body = {
-            "text": "Привет, меня зовут Trinity."
-            "\nВам предоставлены права администратора. "
-            "\nПожалуйста, добавляйте коллег в этот чат, если потребуется, чтобы другие участники могли загружать закупочные документы для аудита."
-            "\nДля дальнейшей работы выберите нужный пункт меню:",
-            "attachments": [
-                {
-                    "type": "inline_keyboard",
-                    "payload": {
-                        "buttons": [
-                            [
-                                {
-                                    "type": "callback",
-                                    "text": "Начать работу",
-                                    "payload": "begin_work"  
-                                }
-                            ],
-                            [
-                                {
-                                    "type": "callback",
-                                    "text": "Получить отчет",
-                                    "payload": "get_report"  
-                                }
-                            ],
-                            [
-                                {
-                                    "type": "callback",
-                                    "text": "О тринити",
-                                    "payload": "about_trinity"  
-                                }
-                            ],
-                            [
-                                {
-                                    "type": "callback",
-                                    "text": "Инструкции",
-                                    "payload": "instructions"  
-                                }
-                            ],
-                            [
-                                {
-                                    "type": "callback",
-                                    "text": "Консультации",
-                                    "payload": "consultations"  
-                                }
-                            ],
-                            [
-                                {
-                                    "type": "callback",
-                                    "text": "Заключить договор",
-                                    "payload": "sign_contract"  
-                                }
-                            ]
-                        ]
-                    }
-                }
-            ]
-        }
-    
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
 
-def beginWork(data):
+def _send(chat_id, body):
+    api.api_request("POST", f"/messages?chat_id={chat_id}", json=body)
 
-    body = {
-        "text": "Чтобы продолжить, мне нужно будет зарегистрировать вашу организацию. Введите ИНН(10 цифр):",
-        "attachments": [
-            {
-                "type": "inline_keyboard",
-                "payload": {
-                    "buttons": [
-                        [
-                            {
-                                "type": "callback",
-                                "text": "Ввести ИНН",
-                                "payload": "enter_inn"
-                            }
-                        ],
-                        [
-                            {
-                                "type": "callback",
-                                "text": "Назад",
-                                "payload": "back_to_main"
-                            }
-                        ]
-                    ]
-                }
-            }
-        ]
-    }
+def show_menu_btns(data):
 
-    api.api_request("POST", f"/messages?chat_id={getData.getChatId(data)}", json=body)
+    body = message(
+        "Привет, меня зовут Trinity."
+        "\nВам предоставлены права администратора."
+        "\nДобавляйте коллег — они смогут загружать закупочные документы."
+        "\nДля дальнейшей работы выберите нужный пункт меню:",
 
-def askInn(data):
+        keyboard(
+            [btn_callback("Начать работу", "begin_work")],
+            [btn_callback("Получить отчет", "get_report")],
+            [btn_callback("О Тринити", "about_trinity")],
+            [btn_callback("Инструкции", "instructions")],
+            [btn_callback("Консультации", "consultations")],
+            [btn_callback("Заключить договор", "sign_contract")]
+        )
+    )
 
-    body = {
-        "text": "Введите ИНН вашей организации (10 или 12 цифр):"
-    }
+    _send(get_data.get_chat_id(data), body)
 
-    api.api_request("POST", f"/messages?chat_id={getData.getChatId(data)}", json=body)
+def begin_work(data):
 
-def chooseReport(data):
+    body = message(
+        "Чтобы продолжить, мне нужно зарегистрировать вашу организацию. Введите ИНН (10 цифр):",
+        keyboard(
+            [btn_callback("Ввести ИНН", "enter_inn")],
+            [btn_callback("Назад", "back_to_main")]
+        )
+    )
 
-    body = {
-                "text": "Выберете желаемый период отчета: ",
-                "attachments": [
-                    {
-                        "type": "inline_keyboard",
-                        "payload": {
-                            "buttons": [
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "За текущую неделю",
-                                        "payload": 'report_current_week'
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "За текущий месяц",
-                                        "payload": "report_current_month"
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "За прошедшую неделю",
-                                        "payload": 'report_last_week'
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "За прошедший месяц",
-                                        "payload": 'report_last_month'
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "Назад",
-                                        "payload": "back_to_main"
-                                    }
-                                ]
-                            ]
-                        }
-                    }
-                ]
-            }
-    
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+    _send(get_data.get_chat_id(data), body)
 
-def aboutTrinity(data):
+def ask_inn(data):
 
-    body = {
-                "text": "О ТРИНИТИ ",
-                "attachments": [
-                    {
-                        "type": "inline_keyboard",
-                        "payload": {
-                            "buttons": [
-                                [
-                                    {
-                                        "type": "link",
-                                        "text": "Сайт Тринити",
-                                        "url": 'https://dev.max.ru/docs-api'
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "link",
-                                        "text": "Видео о ТРИНИТИ",
-                                        "url": "https://dev.max.ru/docs-api"
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "link",
-                                        "text": "Как работать в тринити",
-                                        "url": 'https://dev.max.ru/docs-api'
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "link",
-                                        "text": "Презентация ТРИНИТИ",
-                                        "url": 'https://dev.max.ru/docs-api'
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "Назад",
-                                        "payload": "back_to_main"
-                                    }
-                                ]
-                            ]
-                        }
-                    }
-                ]
-            }
-    
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+    body = message("Введите ИНН вашей организации (10 или 12 цифр):")
+
+    _send(get_data.get_chat_id(data), body)
+
+def choose_report(data):
+
+    body = message(
+        "Выберите желаемый период отчета:",
+        keyboard(
+            [btn_callback("За текущую неделю", "report_current_week")],
+            [btn_callback("За текущий месяц", "report_current_month")],
+            [btn_callback("За прошедшую неделю", "report_last_week")],
+            [btn_callback("За прошедший месяц", "report_last_month")],
+            [btn_callback("Назад", "back_to_main")]
+        )
+    )
+
+    _send(get_data.get_chat_id(data), body)
+
+def about_trinity(data):
+
+    body = message(
+        "О ТРИНИТИ:",
+        keyboard(
+            [btn_link("Сайт Тринити", "https://dev.max.ru/docs-api")],
+            [btn_link("Видео о Тринити", "https://dev.max.ru/docs-api")],
+            [btn_link("Как работать в Тринити", "https://dev.max.ru/docs-api")],
+            [btn_link("Презентация Тринити", "https://dev.max.ru/docs-api")],
+            [btn_callback("Назад", "back_to_main")]
+        )
+    )
+
+    _send(get_data.get_chat_id(data), body)
 
 def instructions(data):
 
-    body = {
-                "text": "Инструкции ",
-                "attachments": [
-                    {
-                        "type": "inline_keyboard",
-                        "payload": {
-                            "buttons": [
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "Как это работает",
-                                        "payload": 'how_it_works'
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "Об аудите протокола",
-                                        "payload": "about_audit_protocol"
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "Об аудите ТКП / Счета",
-                                        "payload": 'about_audit_tkp'
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "Назад",
-                                        "payload": "back_to_main"
-                                    }
-                                ]
-                            ]
-                        }
-                    }
-                ]
-            }
-    
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+    body = message(
+        "Инструкции:",
 
-def howItWorks(data):
+        keyboard(
+            [btn_callback("Как это работает", "how_it_works")],
+            [btn_callback("Об аудите протокола", "about_audit_protocol")],
+            [btn_callback("Об аудите ТКП / счёта", "about_audit_tkp")],
+            [btn_callback("Назад", "back_to_main")]
+        )
+    )
 
-    body = {
-        "text": ""
-        "1. Вы направляете в чат закупочные файлы в удобном формате.\n"
-        "\n2. На основании загруженной формы я выдам заключение о согласовании или несогласовании сделки, которое будет направлено в этот чат.\n"
-        "\n3. Все закупки с отрицательным заключением Вы можете отдать на проработку нашим экспертам.\n"
-        "\nЧерез 1 -3 рабочих дня, мы предоставим альтернативных поставщиков с экономией 5% -25%\n",
-        "attachments": [
-            {
-                "type": "inline_keyboard",
-                "payload": {
-                    "buttons": [
-                        [
-                            {
-                                "type": "callback",
-                                "text": "Назад",
-                                "payload": "back_to_instructions"
-                            }
-                        ]
-                    ]
-                }
-            }
-        ]
-    }
+    _send(get_data.get_chat_id(data), body)
 
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+def how_it_works(data):
 
-def aboutAuditProtocol(data):
+    body = message(
+        "1. Вы направляете в чат закупочные файлы.\n"
+        "\n2. На основании формы я выдам заключение о согласовании или несогласовании сделки.\n"
+        "\n3. Закупки с отрицательным заключением можно отправить экспертам.\n"
+        "\nЧерез 1–3 рабочих дня мы предоставим альтернативных поставщиков с экономией 5%–25%.",
+        keyboard([btn_callback("Назад", "back_to_instructions")])
+    )
 
-    body = {
-        "text": "Для того, чтобы отправить на аудит тендерный протокол*, убедитесь, пожалуйста, что он содержит следующую информацию:\n"
-        "\n1. ИНН участников;\n"
-        "\n2. Номенклатура товара;\n"
-        "\n3. Единицы измерения;\n"
-        "\n4. Количество по каждой позиции;\n"
-        "\n5. Цена по каждой позиции (с указанием с НДС или без НДС);\n "
-        "\n6. Адрес доставки;\n "
-        "\n7. Победитель протокола.\n"
-        "\n*Мне может понадобиться некоторое время, чтобы научиться распознавать Вашу форму тендерного протокола.",
-        "attachments": [
-            {
-                "type": "inline_keyboard",
-                "payload": {
-                    "buttons": [
-                        [
-                            {
-                                "type": "callback",
-                                "text": "Назад",
-                                "payload": "back_to_instructions"
-                            }
-                        ]
-                    ]
-                }
-            }
-        ]
-    }
+    _send(get_data.get_chat_id(data), body)
 
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+def about_audit_protocol(data):
 
-def aboutAuditTKP(data):
+    body = message(
+        "Чтобы отправить на аудит тендерный протокол, убедитесь, что он содержит:\n"
+        "1. ИНН участников\n"
+        "2. Номенклатуру товара\n"
+        "3. Единицы измерения\n"
+        "4. Количество\n"
+        "5. Цены (с/без НДС)\n"
+        "6. Адрес доставки\n"
+        "7. Победителя протокола\n\n"
+        "*Возможно потребуется время, чтобы я обучился вашей форме протокола.",
+        keyboard([btn_callback("Назад", "back_to_instructions")])
+    )
 
-    body = {
-        "text": "Для того, чтобы отправить на аудит ТКП / счёт, убедитесь, пожалуйста, что файл содержит следующую информацию:\n"
-        "\n1. ИНН поставщика;\n"
-        "\n2. Номенклатура товара;\n"
-        "\n3. Единицы измерения;\n"
-        "\n4. Количество по каждой позиции;\n"
-        "\n5. Цена по каждой позиции (с указанием с НДС или без НДС);\n"
-        "\n6. Адрес доставки.\n"
-        "\nФормат загружаемых файлов- любой (pdf, jpeg, excel). Можно загрузить сразу несколько файлов.",
-        "attachments": [
-            {
-                "type": "inline_keyboard",
-                "payload": {
-                    "buttons": [
-                        [
-                            {
-                                "type": "callback",
-                                "text": "Назад",
-                                "payload": "back_to_instructions"
-                            }
-                        ]
-                    ]
-                }
-            }
-        ]
-    }
+    _send(get_data.get_chat_id(data), body)
 
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+def about_audit_TKP(data):
+
+    body = message(
+        "Чтобы отправить на аудит ТКП / счёт, убедитесь, что файл содержит:\n"
+        "1. ИНН поставщика\n"
+        "2. Номенклатуру товара\n"
+        "3. Единицы измерения\n"
+        "4. Количество\n"
+        "5. Цены (с/без НДС)\n"
+        "6. Адрес доставки\n\n"
+        "Формат файлов — любой (pdf, jpeg, excel), можно загружать несколько.",
+        keyboard([btn_callback("Назад", "back_to_instructions")])
+    )
+
+    _send(get_data.get_chat_id(data), body)
 
 def consultations(data):
 
-    body = {
-                "text": "Какой у вас возник вопрос? ",
-                "attachments": [
-                    {
-                        "type": "inline_keyboard",
-                        "payload": {
-                            "buttons": [
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "Вопрос по выданным файлам",
-                                        "payload": 'file_question'
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "Вопросы по работе нейросети ТРИНИТИ",
-                                        "payload": "trinity_ai_question"
-                                    }
-                                ],
-                                [
-                                    {
-                                        "type": "callback",
-                                        "text": "Назад",
-                                        "payload": "back_to_main"
-                                    }
-                                ]
-                            ]
-                        }
-                    }
-                ]
-            }
-    
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+    body = message(
+        "Какой у вас вопрос?",
+        keyboard(
+            [btn_callback("Вопрос по выданным файлам", "file_question")],
+            [btn_callback("Вопрос по работе ТРИНИТИ AI", "trinity_ai_question")],
+            [btn_callback("Назад", "back_to_main")]
+        )
+    )
 
-def fileQuestion(data):
+    _send(get_data.get_chat_id(data), body)
 
-    body = {
-        "text": "Вы можете задавать Ваши вопросы прямо в чате, куратор проекта ответ на них по первой возможности. ",
-        "attachments": [
-            {
-                "type": "inline_keyboard",
-                "payload": {
-                    "buttons": [
-                        [
-                            {
-                                "type": "callback",
-                                "text": "Назад",
-                                "payload": "back_to_consultations"
-                            }
-                        ]
-                    ]
-                }
-            }
-        ]
-    }
+def file_question(data):
 
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+    body = message(
+        "Задавайте вопросы прямо в чате — куратор ответит при первой возможности.",
+        keyboard([btn_callback("Назад", "back_to_consultations")])
+    )
 
-def trinityAiQuestion(data):
+    _send(get_data.get_chat_id(data), body)
 
-    body = {
-        "text": "Вы можете задавать Ваши вопросы прямо в чате, куратор проекта ответ на них по первой возможности. ",
-        "attachments": [
-            {
-                "type": "inline_keyboard",
-                "payload": {
-                    "buttons": [
-                        [
-                            {
-                                "type": "callback",
-                                "text": "Назад",
-                                "payload": "back_to_consultations"
-                            }
-                        ]
-                    ]
-                }
-            }
-        ]
-    }
+def trinity_AI_question(data):
 
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json=body)
+    body = message(
+        "Задавайте вопросы по работе нейросети — куратор ответит при первой возможности.",
+        keyboard([btn_callback("Назад", "back_to_consultations")])
+    )
+
+    _send(get_data.get_chat_id(data), body)
 
 def send_message_with_file(data):
 
-    file_path = r'D:\Trinity\TrinityBot\TrinityBot\example.txt'
+    file_path = r"D:\Trinity\TrinityBot\TrinityBot\example.txt"
     filename = "example.txt"
 
-    file_token = getData.getFileToken(file_path, filename)
-
-    message_id = getData.getMessageId(data)
+    file_token = get_data.get_file_token(file_path, filename)
+    message_id = get_data.get_message_id(data)
 
     body = {
         "text": "Сообщение с файлом и цитированием",
-        "attachments": [
-            {
-                "type": "file",
-                "payload": {
-                    "token": file_token
-                }
-            }
-        ],
-        "link": {
-            "type": 'reply',
-            "mid": message_id
-        }
+        "attachments": [{"type": "file", "payload": {"token": file_token}}],
+        "link": {"type": "reply", "mid": message_id}
     }
-        
-    api.api_request(
-            'POST',
-            f"/messages?chat_id={getData.getChatId(data)}",
-            json=body
-        )
-    
+
+    _send(get_data.get_chat_id(data), body)
+
 def pin_message(data):
 
-    message_id = getData.getMessageId(data)
+    message_id = get_data.get_message_id(data)
+    body = {"message_id": message_id}
 
-    body = {
-        "message_id": message_id
-    }
-
-    api.api_request('PUT', f'/chats/{getData.getChatId(data)}/pin', json=body)
+    api.api_request(
+        "PUT",
+        f"/chats/{get_data.get_chat_id(data)}/pin",
+        json=body
+    )
 
 def chat_error_response(data):
 
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json={"text": "Эта функция доступна только  в групповых чатах"})
+    _send(get_data.get_chat_id(data), {"text": "Эта функция доступна только в групповых чатах"})
 
 def inn_error_response(data):
 
-    api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json={"text": "Ошибка регистрации организации. Попробуйте другой ИНН."})
+    _send(get_data.get_chat_id(data), {"text": "Ошибка регистрации организации. Попробуйте другой ИНН."})
 
 def update_img(data):
 
-    url = data['message']['body']['attachments'][0]['payload']['url']
+    url = data["message"]["body"]["attachments"][0]["payload"]["url"]
 
-    body = {
-        'icon': { "url": url }
-    }
+    body = {"icon": {"url": url}}
 
-    api.api_request('PATCH', f'/chats/{getData.getChatId(data)}', json=body)
+    api.api_request(
+        "PATCH",
+        f"/chats/{get_data.get_chat_id(data)}",
+        json=body
+    )

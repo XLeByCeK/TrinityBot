@@ -1,23 +1,26 @@
-import commands
-import getData
 from redis_client import redis_conn
+
+import commands
+import get_data
+
 import db
+
 import api
 
 CALLBACK_HANDLERS = {
 
-    'begin_work': commands.beginWork,
-    'enter_inn': commands.askInn,
-    'get_report': commands.chooseReport,
-    'about_trinity': commands.aboutTrinity,
+    'begin_work': commands.begin_work,
+    'enter_inn': commands.ask_inn,
+    'get_report': commands.choose_report,
+    'about_trinity': commands.about_trinity,
     'instructions': commands.instructions,
-    'how_it_works': commands.howItWorks,
-    'about_audit_protocol': commands.aboutAuditProtocol,
-    'about_audit_tkp': commands.aboutAuditTKP,
+    'how_it_works': commands.how_it_works,
+    'about_audit_protocol': commands.about_audit_protocol,
+    'about_audit_tkp': commands.about_audit_TKP,
     'consultations': commands.consultations,
-    'file_question': commands.fileQuestion,
-    'trinity_ai_question': commands.trinityAiQuestion,
-    'back_to_main': commands.showMenuBtns,
+    'file_question': commands.file_question,
+    'trinity_ai_question': commands.trinity_AI_question,
+    'back_to_main': commands.show_menu_btns,
     'back_to_instructions': commands.instructions,
     'back_to_consultations': commands.consultations,
 }
@@ -63,7 +66,7 @@ def private_chats(data, update_type, msg_text, attachment_type):
 
         db.save_incoming_message(data)
 
-    state = get_state(getData.getSenderUserId(data))
+    state = get_state(get_data.get_sender_user_id(data))
 
     if update_type == 'message_callback':
             
@@ -82,23 +85,23 @@ def private_chats(data, update_type, msg_text, attachment_type):
 
                 if org_id:
 
-                    user_id = getData.getSenderUserId(data)
-                    chat_id = getData.getChatId(data)
+                    user_id = get_data.get_sender_user_id(data)
+                    chat_id = get_data.get_chat_id(data)
 
                     db.link_user_to_org(user_id, org_id)
                     db.link_org_to_chat(org_id, chat_id)
 
                     api.api_request('POST', f'/messages?chat_id={chat_id}', json={"text": "Организация успешно зарегистрирована!"})
 
-                    commands.showMenuBtns(data)
+                    commands.show_menu_btns(data)
                 else:
 
                     commands.inn_error_response(data)
             else:
 
-                api.api_request('POST', f'/messages?chat_id={getData.getChatId(data)}', json={"text": "Неверный формат ИНН. Введите 10 или 12 цифр."})
+                api.api_request('POST', f'/messages?chat_id={get_data.get_chat_id(data)}', json={"text": "Неверный формат ИНН. Введите 10 или 12 цифр."})
 
-            set_state(getData.getSenderUserId(data), "default")
+            set_state(get_data.get_sender_user_id(data), "default")
             
         return
     
@@ -146,7 +149,7 @@ def group_chats(data, update_type, msg_text, attachment_type):
 
         else:
 
-            commands.showMenuBtns(data)
+            commands.show_menu_btns(data)
     
     elif update_type == 'message_callback':
         

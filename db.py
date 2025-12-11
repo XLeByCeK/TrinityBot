@@ -1,9 +1,10 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
 import datetime
 import json
+
 import api
-import commands
 
 # ------------------------- CONNECTION -------------------------
 

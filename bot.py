@@ -1,6 +1,8 @@
-import chatshandler
 from flask import Flask, request, jsonify
+
 import api
+
+import chatshandler
 import commands
 
 
@@ -13,22 +15,28 @@ def webhook():
     print("WEBHOOK:", data)
 
     update_type = data.get('update_type')
-    msg_text = data['message']['body']['text']
-    chat_type = data['message']['recipient']['chat_type']
-    user_id = data['message']['sender']['user_id']
+
+    message = data.get('message', {})
+    body = message.get('body', {})
+    recipient = message.get('recipient', {})
+    sender = message.get('sender', {})
+
+    msg_text = body.get('text')
+    chat_type = recipient.get('chat_type')
+    user_id = sender.get('user_id')
     
 
     if msg_text == "/start":
 
         chatshandler.set_state(user_id, "default")
 
-        commands.showMenuBtns(data)
+        commands.show_menu_btns(data)
 
         return jsonify({'ok': True})
 
 
 
-    attachments = data['message']['body'].get('attachments', [])
+    attachments = body.get('attachments', []) or []
     attachment_type = attachments[0].get('type') if attachments else None
 
     
