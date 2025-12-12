@@ -1,6 +1,8 @@
 import api
 import get_data
 
+import db
+
 from ui_creator import (
     message,
     keyboard,
@@ -34,6 +36,9 @@ def show_menu_btns(data):
 
 def begin_work(data):
 
+    if check_authorization(data):
+        return
+
     body = message(
         "Чтобы продолжить, мне нужно зарегистрировать вашу организацию. Введите ИНН (10 цифр):",
         keyboard(
@@ -45,6 +50,9 @@ def begin_work(data):
     _send(get_data.get_chat_id(data), body)
 
 def ask_inn(data):
+
+    if check_authorization(data):
+        return
 
     body = message("Введите ИНН вашей организации (10 или 12 цифр):")
 
@@ -171,21 +179,54 @@ def trinity_AI_question(data):
 
     _send(get_data.get_chat_id(data), body)
 
-def send_message_with_file(data):
+def process_file(data):
 
-    file_path = r"D:\Trinity\TrinityBot\TrinityBot\example.txt"
-    filename = "example.txt"
+    authorized= db.is_user_authorized(get_data.get_sender_user_id(data))
 
-    file_token = get_data.get_file_token(file_path, filename)
-    message_id = get_data.get_message_id(data)
+    if authorized:
+       
+        body = message(
+            "Спасибо.\n" \
+            "Файлы приняты.\n\n" \
+            "Выдача заключения (ий) происходит в течение 10-25 минут, последовательно, в зависимости от количества файлов."  
+        )
 
-    body = {
-        "text": "Сообщение с файлом и цитированием",
-        "attachments": [{"type": "file", "payload": {"token": file_token}}],
-        "link": {"type": "reply", "mid": message_id}
-    }
+        _send(get_data.get_chat_id(data), body)
+
+        return
+
+    body = message(
+        "Ваша организация не прошла регистрацию.",
+    )
 
     _send(get_data.get_chat_id(data), body)
+
+def success_authorization(data, org_name):
+
+    api.api_request('POST', 
+                    f'/messages?chat_id={get_data.get_chat_id(data)}', 
+                    json={"text": f"Отлично! Ваша организация {org_name}.\n"  
+                                    "Теперь ценообразование Ваших закупок будет под надёжной защитой искусственного интеллекта.\n" 
+                                    "Пожалуйста, выкладывайте файлы Ваших тендерных протоколов."})
+
+def check_authorization(data):
+
+    authorized= db.is_user_authorized(get_data.get_recipient_user_id(data))
+
+    if authorized:
+       
+        body = message(
+            f"Вы уже авторизованы.",
+            keyboard(
+                [btn_callback("Назад", "back_to_main")]
+            )
+        )
+
+        _send(get_data.get_chat_id(data), body)
+
+        return True
+    
+    return False
 
 def pin_message(data):
 

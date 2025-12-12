@@ -6,7 +6,7 @@ import json
 
 import api
 
-# ------------------------- CONNECTION -------------------------
+
 
 def get_conn():
     return psycopg2.connect(
@@ -18,7 +18,7 @@ def get_conn():
     )
 
 
-# ------------------------- ORGANIZATIONS -------------------------
+
 
 def register_organization(inn: int, data):
     
@@ -64,8 +64,6 @@ def register_organization(inn: int, data):
         return None
 
 
-# ------------------------- USERS -------------------------
-
 def create_user(first_name: str, last_name: str, max_user_id: int,):
 
     with get_conn() as conn:
@@ -81,7 +79,6 @@ def create_user(first_name: str, last_name: str, max_user_id: int,):
             """, ( first_name, last_name, max_user_id))
 
 
-# ------------------------- CHATS -------------------------
 
 def create_chat(max_chat_id: int):
 
@@ -98,7 +95,7 @@ def create_chat(max_chat_id: int):
             """, (max_chat_id,))
 
 
-# ------------------------- LINKS -------------------------
+
 
 def link_user_to_org(max_user_id: int, org_id: int):
 
@@ -124,7 +121,7 @@ def link_org_to_chat(org_id: int, max_chat_id: int):
             """, (org_id, max_chat_id))
 
 
-# ------------------------- MESSAGES -------------------------
+
 
 def save_incoming_message(data: dict):
 
@@ -137,7 +134,14 @@ def save_incoming_message(data: dict):
     max_user_id = sender.get("user_id")
     max_chat_id = recipient.get("chat_id")
     text = body.get("text")
-    msg_type = body.get("type", "text")
+
+    attachments = body.get("attachments", [])
+    if attachments:
+
+        msg_type = attachments[0].get("type", "unknown")
+    else:
+
+        msg_type = "text"
 
     timestamp_ms = data.get("timestamp")
     received_at = datetime.datetime.fromtimestamp(timestamp_ms / 1000.0)
@@ -163,6 +167,8 @@ def save_incoming_message(data: dict):
 
             ))
 
+
+
 def get_organization_name(inn: int):
 
     with get_conn() as conn:
@@ -175,3 +181,23 @@ def get_organization_name(inn: int):
 
             result = cur.fetchone()
             return result[0] if result else None
+        
+def is_user_authorized(max_user_id: int):
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+
+            cur.execute("""
+                SELECT org_id 
+                FROM usersorg
+                WHERE max_user_id = %s
+                LIMIT 1
+            """, (max_user_id,))
+
+            row = cur.fetchone()
+
+            if row:
+                return True
+              
+            else:
+                return False

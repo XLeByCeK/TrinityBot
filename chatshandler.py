@@ -85,21 +85,14 @@ def private_chats(data, update_type, msg_text, attachment_type):
 
                 if org_id:
 
-                    user_id = get_data.get_sender_user_id(data)
-                    chat_id = get_data.get_chat_id(data)
+                    db.link_user_to_org(get_data.get_sender_user_id(data), org_id)
+                    db.link_org_to_chat(org_id, get_data.get_chat_id(data))
 
-                    db.link_user_to_org(user_id, org_id)
-                    db.link_org_to_chat(org_id, chat_id)
+                    org_name = db.get_organization_name(inn)
 
-                    name = db.get_organization_name(inn)
-
-                    api.api_request('POST', 
-                                    f'/messages?chat_id={chat_id}', 
-                                    json={"text": f"Отлично! Ваша организация {name}.\n"  
-                                                    "Теперь ценообразование Ваших закупок будет под надёжной защитой искусственного интеллекта.\n" 
-                                                    "Пожалуйста, выкладывайте файлы Ваших тендерных протоколов."})
-
+                    commands.success_authorization(data, org_name)
                     commands.show_menu_btns(data)
+
                 else:
 
                     commands.inn_error_response(data)
@@ -125,17 +118,9 @@ def private_chats(data, update_type, msg_text, attachment_type):
 
         if update_type == 'message_created':
 
-            if attachment_type == 'image':
+            if attachment_type == 'file':
 
-                commands.chat_error_response(data)
-
-            elif msg_text == 'Отправь файл':
-
-                commands.send_message_with_file(data)
-
-            elif msg_text == 'Закрепи сообщение':
-
-                commands.chat_error_response(data)       
+                commands.process_file(data)   
     
 def group_chats(data, update_type, msg_text, attachment_type):
 
@@ -147,7 +132,7 @@ def group_chats(data, update_type, msg_text, attachment_type):
 
         elif msg_text == 'Отправь файл':
 
-            commands.send_message_with_file(data)
+            commands.process_file(data)
 
         elif msg_text == 'Закрепи сообщение':
 
