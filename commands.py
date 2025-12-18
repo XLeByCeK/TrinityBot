@@ -228,17 +228,6 @@ def check_authorization(data):
     
     return False
 
-def pin_message(data):
-
-    message_id = get_data.get_message_id(data)
-    body = {"message_id": message_id}
-
-    api.api_request(
-        "PUT",
-        f"/chats/{get_data.get_chat_id(data)}/pin",
-        json=body
-    )
-
 def chat_error_response(data):
 
     _send(get_data.get_chat_id(data), {"text": "Эта функция доступна только в групповых чатах"})
@@ -256,14 +245,3 @@ def inn_error_response(data):
 
     _send(get_data.get_chat_id(data), body)
 
-def update_img(data):
-
-    url = data["message"]["body"]["attachments"][0]["payload"]["url"]
-
-    body = {"icon": {"url": url}}
-
-    api.api_request(
-        "PATCH",
-        f"/chats/{get_data.get_chat_id(data)}",
-        json=body
-    )

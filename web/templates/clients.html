@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div id="orgs" class="tab-content mt-4">
+    <form class="mb-4">
+      <input name="q" value="{{ search }}" placeholder="ИНН или название"
+             class="border border-gray-300 rounded px-3 py-2 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </form>
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">ИНН</th>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Название</th>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Статус</th>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Пользователи</th>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Чаты</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {% for o in orgs %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-2">{{ o.inn }}</td>
+          <td class="px-4 py-2">{{ o.name }}</td>
+          <td class="px-4 py-2">
+            {% if o.is_active %}
+              <span class="text-green-600 font-semibold">Активна</span>
+            {% else %}
+              <span class="text-red-600 font-semibold">Неактивна</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2">{{ o.users_count }}</td>
+          <td class="px-4 py-2">{{ o.chats_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

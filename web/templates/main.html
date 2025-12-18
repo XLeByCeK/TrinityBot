@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="p-6">
+
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold">Панель управления ботом</h1>
+        <a href="/logout" class="text-sm text-red-500 hover:underline">
+            Выйти
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <a href="{{ url_for('messages.messages') }}"
+           class="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
+            <h2 class="text-xl font-semibold mb-2">📖 Журнал сообщений</h2>
+            <p class="text-gray-500">
+                Все сообщения, прочитанные ботом
+            </p>
+        </a>
+
+        <a href="{{ url_for('groups.groups') }}"
+           class="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
+            <h2 class="text-xl font-semibold mb-2">👥 Группы</h2>
+            <p class="text-gray-500">
+                Список групп, где присутствует бот
+            </p>
+        </a>
+
+        <a href="{{ url_for('clients.clients') }}"
+           class="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
+            <h2 class="text-xl font-semibold mb-2">🏢 Клиенты</h2>
+            <p class="text-gray-500">
+                Зарегистрированные организации
+            </p>
+        </a>
+
+        <a href="{{ url_for('users.users') }}"
+           class="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
+            <h2 class="text-xl font-semibold mb-2">👤 Пользователи</h2>
+            <p class="text-gray-500">
+                Пользователи MAX, писавшие боту
+            </p>
+        </a>
+
+        <a href="{{ url_for('support.chat') }}"
+           class="bg-white p-6 rounded-xl shadow hover:shadow-lg transition md:col-span-2">
+            <h2 class="text-xl font-semibold mb-2">✉️ Чаты поддержки</h2>
+            <p class="text-gray-500">
+                Чаты с пользователями для проведения консультаций
+            </p>
+        </a>
+
+    </div>
+
+</div>
+{% endblock %}

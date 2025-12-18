@@ -1,12 +1,13 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from werkzeug.security import check_password_hash
 
 import datetime
 import json
 
 import api
 
-
+#------------BOT---------
 
 def get_conn():
     return psycopg2.connect(
@@ -201,3 +202,280 @@ def is_user_authorized(max_user_id: int):
               
             else:
                 return False
+            
+#-----------WEB---------
+
+def get_webuser_by_login(login: str):
+
+    with get_conn() as conn:
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+
+            cur.execute("""
+                SELECT web_user_id, login, password_hash
+                FROM webusers
+                WHERE login = %s
+            """, (login,))
+
+            return cur.fetchone()
+
+def authenticate_webuser(login: str, password: str):
+
+    webuser = get_webuser_by_login(login)
+
+    if not webuser:
+        return None
+
+    if check_password_hash(webuser["password_hash"], password):
+        return webuser
+
+    return None
+
+def get_messages_log(
+    date_from=None,
+    date_to=None,
+    org_id=None,
+    chat_id=None,
+    user_query=None,
+    text_query=None,
+    limit=100,
+    offset=0
+):
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+
+            query = """
+                SELECT
+                    m.message_id,
+                    m.content,
+                    m.message_type,
+                    m.received_at,
+
+                    u.user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.max_user_id,
+
+                    c.chat_id,
+
+                    o.org_id,
+                    o.name AS org_name
+
+                FROM messages m
+                JOIN users u ON u.max_user_id = m.max_user_id
+                JOIN chats c ON c.max_chat_id = m.max_chat_id
+                LEFT JOIN orgschats oc ON oc.max_chat_id = c.max_chat_id
+                LEFT JOIN organizations o ON o.org_id = oc.org_id
+
+                WHERE m.message_type != 'bot'
+            """
+
+            params = []
+
+            if date_from:
+                query += " AND m.received_at >= %s"
+                params.append(date_from)
+
+            if date_to:
+                query += " AND m.received_at <= %s"
+                params.append(date_to)
+
+            if org_id:
+                query += " AND o.org_id = %s"
+                params.append(org_id)
+
+            if chat_id:
+                query += " AND c.chat_id = %s"
+                params.append(chat_id)
+
+            if user_query:
+                query += """
+                    AND (
+                        u.first_name ILIKE %s
+                        OR u.last_name ILIKE %s
+                        OR CAST(u.max_user_id AS TEXT) ILIKE %s
+                    )
+                """
+                params.extend([f"%{user_query}%"] * 3)
+
+            if text_query:
+                query += " AND m.content ILIKE %s"
+                params.append(f"%{text_query}%")
+
+            query += """
+                ORDER BY m.received_at DESC
+                LIMIT %s OFFSET %s
+            """
+            params.extend([limit, offset])
+
+            cur.execute(query, params)
+
+            return cur.fetchall()
+
+def get_organizations():
+    with get_conn() as conn:
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+
+            cur.execute("""
+                SELECT org_id, name
+                FROM organizations
+                ORDER BY name
+            """)
+
+            return cur.fetchall()
+
+
+def get_chats():
+    with get_conn() as conn:
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+
+            cur.execute("""
+                SELECT
+                    c.chat_id,
+                    c.max_chat_id,
+                    c.created_at,
+                    o.name AS org_name,
+                    COUNT(m.message_id) AS messages_count,
+                    MAX(m.received_at) AS last_message_at
+                FROM chats c
+                LEFT JOIN orgschats oc ON oc.max_chat_id = c.max_chat_id
+                LEFT JOIN organizations o ON o.org_id = oc.org_id
+                LEFT JOIN messages m ON m.max_chat_id = c.max_chat_id
+                GROUP BY
+                    c.chat_id,
+                    c.max_chat_id,
+                    c.created_at,
+                    o.name
+                ORDER BY last_message_at DESC NULLS LAST
+            """)
+
+            return cur.fetchall()
+
+def get_clients(search=None):
+    with get_conn() as conn:
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+
+            sql = """
+                SELECT
+                    o.org_id,
+                    o.inn,
+                    o.name,
+                    o.is_active,
+                    COUNT(DISTINCT uo.max_user_id) AS users_count,
+                    COUNT(DISTINCT oc.max_chat_id) AS chats_count
+                FROM organizations o
+                LEFT JOIN usersorg uo ON uo.org_id = o.org_id
+                LEFT JOIN orgschats oc ON oc.org_id = o.org_id
+            """
+
+            params = []
+
+            if search:
+
+                sql += " WHERE o.name ILIKE %s OR o.inn::text LIKE %s "
+                params += [f"%{search}%", f"%{search}%"]
+
+            sql += " GROUP BY o.org_id ORDER BY o.name"
+
+            cur.execute(sql, params)
+
+            return cur.fetchall()
+
+def get_users(search=None):
+
+    with get_conn() as conn:
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+
+            sql = """
+                SELECT
+                    u.user_id,
+                    u.max_user_id,
+                    u.first_name,
+                    u.last_name,
+                    o.name AS org_name,
+                    COUNT(m.message_id) AS messages_count,
+                    MAX(m.received_at) AS last_message_at
+                FROM users u
+                LEFT JOIN usersorg uo ON uo.max_user_id = u.max_user_id
+                LEFT JOIN organizations o ON o.org_id = uo.org_id
+                LEFT JOIN messages m ON m.max_user_id = u.max_user_id
+            """
+
+            params = []
+            if search:
+                sql += " WHERE u.first_name ILIKE %s OR u.last_name ILIKE %s "
+                params += [f"%{search}%", f"%{search}%"]
+
+            sql += """
+                GROUP BY
+                    u.user_id,
+                    u.max_user_id,
+                    u.first_name,
+                    u.last_name,
+                    o.name
+                ORDER BY last_message_at DESC NULLS LAST
+            """
+
+            cur.execute(sql, params)
+
+            return cur.fetchall()
+
+def get_support_chats():
+
+    with get_conn() as conn:
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            
+            cur.execute("""
+                SELECT
+                    c.max_chat_id,
+                    o.name AS org_name,
+                    MAX(c.created_at) AS created_at
+                FROM chats c
+                LEFT JOIN orgschats oc ON oc.max_chat_id = c.max_chat_id
+                LEFT JOIN organizations o ON o.org_id = oc.org_id
+                GROUP BY c.max_chat_id, o.name
+                ORDER BY created_at DESC
+            """)
+
+            return cur.fetchall()
+        
+def get_chat_messages(max_chat_id: int):
+
+    with get_conn() as conn:
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+
+            cur.execute("""
+                SELECT
+                    content,
+                    message_type,
+                    received_at,
+                    max_user_id,
+                    CASE
+                        WHEN max_user_id IS NULL THEN TRUE
+                        ELSE FALSE
+                    END AS is_from_bot
+                FROM messages
+                WHERE max_chat_id = %s
+                ORDER BY received_at ASC
+            """, (max_chat_id,))
+
+            return cur.fetchall()
+
+def save_outgoing_message(max_chat_id: int, text: str):
+
+    with get_conn() as conn:
+
+        with conn.cursor() as cur:
+
+            cur.execute("""
+                INSERT INTO messages
+                (max_chat_id, max_user_id, content, message_type, received_at)
+                VALUES (%s, NULL, %s, 'bot', NOW())
+            """, (max_chat_id, text))
+

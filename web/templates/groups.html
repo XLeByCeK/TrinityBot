@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div id="chats" class="tab-content">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Чат</th>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Организация</th>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Сообщений</th>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Активность</th>
+          <th class="px-4 py-2"></th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {% for c in chats %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-2">{{ c.max_chat_id }}</td>
+          <td class="px-4 py-2">{{ c.org_name or "—" }}</td>
+          <td class="px-4 py-2">{{ c.messages_count }}</td>
+          <td class="px-4 py-2">{{ c.last_message_at or "—" }}</td>
+          <td class="px-4 py-2">
+            <a href="/support/{{ c.chat_id }}" class="text-blue-600 hover:underline">Открыть</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

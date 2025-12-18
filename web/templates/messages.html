@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="p-6">
+
+<h1 class="text-2xl font-bold mb-4">Журнал сообщений</h1>
+
+<form method="get" class="bg-white p-4 rounded-xl shadow mb-6 grid grid-cols-6 gap-4">
+
+    <input type="date" name="date_from" value="{{ filters.date_from }}" class="border p-2 rounded">
+    <input type="date" name="date_to" value="{{ filters.date_to }}" class="border p-2 rounded">
+
+    <select name="org_id" class="border p-2 rounded">
+        <option value="">Все организации</option>
+        {% for org in orgs %}
+            <option value="{{ org.org_id }}"
+                {% if filters.org_id == org.org_id|string %}selected{% endif %}>
+                {{ org.name }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <input name="user" placeholder="Пользователь" value="{{ filters.user }}" class="border p-2 rounded">
+    <input name="text" placeholder="Текст сообщения" value="{{ filters.text }}" class="border p-2 rounded">
+
+    <button class="bg-blue-600 text-white rounded px-4">Поиск</button>
+</form>
+
+<div class="bg-white rounded-xl shadow overflow-x-auto">
+<table class="min-w-full text-sm">
+<thead class="bg-gray-100">
+<tr>
+    <th class="p-2">Дата</th>
+    <th class="p-2">Организация</th>
+    <th class="p-2">Пользователь</th>
+    <th class="p-2">Сообщение</th>
+</tr>
+</thead>
+<tbody>
+{% for m in messages %}
+<tr class="border-t">
+    <td class="p-2 whitespace-nowrap">{{ m.received_at }}</td>
+    <td class="p-2">{{ m.org_name or "—" }}</td>
+    <td class="p-2">
+        {{ m.first_name }} {{ m.last_name }}<br>
+        <span class="text-xs text-gray-500">{{ m.max_user_id }}</span>
+    </td>
+    <td class="p-2">{{ m.content }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+</div>
+{% endblock %}
