@@ -5,8 +5,6 @@ import get_data
 
 import db
 
-import api
-
 CALLBACK_HANDLERS = {
 
     'begin_work': commands.begin_work,
@@ -98,7 +96,7 @@ def private_chats(data, update_type, msg_text, attachment_type):
                     commands.inn_error_response(data)
             else:
 
-                api.api_request('POST', f'/messages?chat_id={get_data.get_chat_id(data)}', json={"text": "Неверный формат ИНН. Введите 10 или 12 цифр."})
+                commands.send_message(chat_id,"Неверный формат ИНН. Введите 10 или 12 цифр.")
 
             set_state(get_data.get_sender_user_id(data), "default")
             
@@ -107,9 +105,11 @@ def private_chats(data, update_type, msg_text, attachment_type):
 
     if state == "support_chat":
 
-        if update_type == "message_created":
+        chat_id = get_data.get_chat_id(data)
 
-            commands.chat_error_response(data)
+        db.mark_support_requested(chat_id)
+
+        commands.send_message(chat_id, "Запрос на консультацию получен. Администратор с вами свяжется.")
 
         return
     

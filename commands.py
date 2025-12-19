@@ -245,3 +245,6 @@ def inn_error_response(data):
 
     _send(get_data.get_chat_id(data), body)
 
+def send_message(chat_id, text):
+
+    _send(chat_id, {"text": f"{text}"})

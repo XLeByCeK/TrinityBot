@@ -7,7 +7,7 @@
     <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Кастомизация (опционально) -->
+    <!-- Tailwind config -->
     <script>
       tailwind.config = {
         theme: {
@@ -19,8 +19,12 @@
         }
       }
     </script>
+
 </head>
+
 <body class="bg-gray-100 min-h-screen">
+
     {% block content %}{% endblock %}
+
 </body>
 </html>

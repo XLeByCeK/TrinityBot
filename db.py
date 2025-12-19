@@ -2,6 +2,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash
 
+from flask import session
+
 import datetime
 import json
 
@@ -202,7 +204,19 @@ def is_user_authorized(max_user_id: int):
               
             else:
                 return False
-            
+
+def mark_support_requested(chat_id):
+
+    with get_conn() as conn:
+
+        with conn.cursor() as cur:
+
+            cur.execute("""
+                UPDATE chats SET support_requested = TRUE WHERE max_chat_id = %s
+            """, (
+                chat_id
+            ))
+
 #-----------WEB---------
 
 def get_webuser_by_login(login: str):
@@ -425,20 +439,20 @@ def get_users(search=None):
             return cur.fetchall()
 
 def get_support_chats():
-
     with get_conn() as conn:
 
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            
+
             cur.execute("""
                 SELECT
                     c.max_chat_id,
                     o.name AS org_name,
+                    c.support_requested,
                     MAX(c.created_at) AS created_at
                 FROM chats c
                 LEFT JOIN orgschats oc ON oc.max_chat_id = c.max_chat_id
                 LEFT JOIN organizations o ON o.org_id = oc.org_id
-                GROUP BY c.max_chat_id, o.name
+                GROUP BY c.max_chat_id, o.name, c.support_requested
                 ORDER BY created_at DESC
             """)
 
@@ -448,34 +462,86 @@ def get_chat_messages(max_chat_id: int):
 
     with get_conn() as conn:
 
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT
                     content,
-                    message_type,
-                    received_at,
-                    max_user_id,
-                    CASE
-                        WHEN max_user_id IS NULL THEN TRUE
-                        ELSE FALSE
-                    END AS is_from_bot
+                    received_at AS created_at,
+                    'user' AS sender
                 FROM messages
                 WHERE max_chat_id = %s
-                ORDER BY received_at ASC
-            """, (max_chat_id,))
+
+                UNION ALL
+
+                SELECT
+                    content,
+                    sent_at AS created_at,
+                    'bot' AS sender
+                FROM outgoingmessages
+                WHERE max_chat_id = %s
+
+                ORDER BY created_at
+            """, (max_chat_id, max_chat_id))
 
             return cur.fetchall()
 
 def save_outgoing_message(max_chat_id: int, text: str):
+    
+    max_user_id = get_max_user_id(max_chat_id)
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+
+            web_user_id = session["web_user_id"]
+
+
+            cur.execute("""
+                INSERT INTO outgoingmessages
+                (max_chat_id, max_user_id, web_user_id, content, sent_at)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (
+                max_chat_id,
+                max_user_id,
+                web_user_id,
+                text
+            ))
+
+def get_max_user_id(max_chat_id: int) -> int:
 
     with get_conn() as conn:
 
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT max_user_id
+                FROM messages
+                WHERE max_chat_id = %s
+                ORDER BY received_at
+                LIMIT 1
+            """, (max_chat_id,))
+
+            row = cur.fetchone()
+            return row["max_user_id"] if row else None
+        
+def get_new_support_requests_count():
+
+    with get_conn() as conn:
+        
         with conn.cursor() as cur:
 
-            cur.execute("""
-                INSERT INTO messages
-                (max_chat_id, max_user_id, content, message_type, received_at)
-                VALUES (%s, NULL, %s, 'bot', NOW())
-            """, (max_chat_id, text))
+            cur.execute(
+                "SELECT COUNT(*) FROM chats WHERE support_requested = TRUE"
+            )
 
+            result = cur.fetchone()
+            return result[0] if result else None
+
+
+def mark_support_handled(chat_id):
+
+    with get_conn() as conn:
+
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+
+            cur.execute("""
+                UPDATE chats SET support_requested = FALSE WHERE max_chat_id = %s
+            """, (chat_id,))

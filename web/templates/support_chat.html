@@ -12,6 +12,9 @@
            {% if chat.max_chat_id == active_chat %}bg-gray-100{% endif %}">
             <div class="font-semibold">
                 {{ chat.org_name or "Неизвестная организация" }}
+                {% if chat.support_requested %}
+                    <span class="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">Новый запрос</span>
+                {% endif %}
             </div>
             <div class="text-xs text-gray-500">
                 Chat ID: {{ chat.max_chat_id }}
@@ -29,9 +32,8 @@
 
         <!-- Сообщения -->
         <div class="flex-1 p-4 overflow-y-auto space-y-2">
-
             {% for msg in messages %}
-                {% if msg.is_from_bot %}
+                {% if msg.sender == 'bot' %}
                     <div class="flex justify-end">
                         <div class="bg-blue-500 text-white px-4 py-2 rounded-lg max-w-lg">
                             {{ msg.content }}
@@ -45,7 +47,6 @@
                     </div>
                 {% endif %}
             {% endfor %}
-
         </div>
 
         <!-- Ввод -->
