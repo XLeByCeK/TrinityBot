@@ -5,13 +5,13 @@ from api import TOKEN
 
 def get_sender_user_id(data):
 
-    return (
+    callback = data.get('callback')
 
-        data.get('message', {})
-            .get('sender', {})
-            .get('user_id')
+    if callback:
+        return callback.get('user', {}).get('user_id')
+    
 
-    )
+    return data.get('message', {}).get('sender', {}).get('user_id')
 
 
 def get_recipient_user_id(data):

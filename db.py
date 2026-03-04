@@ -97,7 +97,23 @@ def create_chat(max_chat_id: int):
                 VALUES (NOW(), %s)
             """, (max_chat_id,))
 
+def get_user_inn (max_user_id: int):
+    
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            query = """
+                SELECT o.inn 
+                FROM organizations o
+                JOIN usersorg uo ON o.org_id = uo.org_id
+                WHERE uo.max_user_id = %s
+                LIMIT 1
+            """
+            
+            cur.execute(query, (max_user_id,))
+            result = cur.fetchone()
+            
 
+            return result[0] if result else None
 
 
 def link_user_to_org(max_user_id: int, org_id: int):
@@ -187,6 +203,8 @@ def get_organization_name(inn: int):
         
 def is_user_authorized(max_user_id: int):
 
+
+    print(max_user_id)
     with get_conn() as conn:
         with conn.cursor() as cur:
 

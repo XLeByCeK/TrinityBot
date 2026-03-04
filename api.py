@@ -7,6 +7,8 @@ load_dotenv()
 
 TOKEN =  os.getenv('TOKEN')
 FNS_API_KEY = os.getenv("FNS_API_KEY")
+PROCESSING_API_KEY = os.getenv("X-API-KEY")
+EXTERNAL_API_URL = "http://46.21.247.224:8002/api/v1/process"
 WEBHOOK_URL = "https://poetless-jamar-overdepressively.ngrok-free.dev/webhook"
 API_BASE = "https://platform-api.max.ru"
 
@@ -107,4 +109,28 @@ def fetch_org_from_fns(inn):
         print(f"Error fetching from FNS API: {e}")
         
         return None
+
+
+def send_to_processing_service(payload):
+
+    headers = {
+        "X-API-Key": PROCESSING_API_KEY,
+        "Content-Type": "application/json"
+    }
     
+    try:
+
+        response = requests.post(EXTERNAL_API_URL, json=payload, headers=headers, timeout=60)
+        
+        if response.status_code == 200:
+            print("Данные успешно отправлены в API")
+            return True
+        
+        else:
+            print(f"Ошибка внешнего API ({response.status_code}): {response.text}")
+            return False
+        
+    except Exception as e:
+        
+        print(f"Ошибка при подключении к внешнему API: {e}")
+        return False  

@@ -3,6 +3,11 @@ import get_data
 
 import db
 
+from redis_client import redis_conn
+
+import threading
+import json
+
 from ui_creator import (
     message,
     keyboard,
@@ -10,6 +15,7 @@ from ui_creator import (
     btn_link
 )
 
+active_timers = {}
 
 def _send(chat_id, body):
     api.api_request("POST", f"/messages?chat_id={chat_id}", json=body)
@@ -50,7 +56,7 @@ def begin_work(data):
     _send(get_data.get_chat_id(data), body)
 
 def ask_inn(data):
-
+    
     if check_authorization(data):
         return
 
@@ -181,25 +187,159 @@ def trinity_AI_question(data):
 
 def process_file(data):
 
-    authorized= db.is_user_authorized(get_data.get_sender_user_id(data))
+    user_id = get_data.get_sender_user_id(data)
+    chat_id = get_data.get_chat_id(data)
+    batch_key = f"batch:{user_id}:{chat_id}"
+    
+    if not db.is_user_authorized(user_id):
 
-    if authorized:
-       
-        body = message(
-            "Спасибо.\n" \
-            "Файлы приняты.\n\n" \
-            "Выдача заключения (ий) происходит в течение 10-25 минут, последовательно, в зависимости от количества файлов."  
-        )
+        return 
 
-        _send(get_data.get_chat_id(data), body)
+    body = data.get('message', {}).get('body', {})
+    attachments = body.get('attachments', [])
+    text = body.get('text', '').strip()
+
+    msg_id = body.get('mid', '0')
+
+
+    if not attachments and redis_conn.exists(batch_key):
+
+        update_batch_comment(batch_key, text)
+        restart_timer(batch_key, data)
 
         return
 
-    body = message(
-        "Ваша организация не прошла регистрацию.",
-    )
 
-    _send(get_data.get_chat_id(data), body)
+    files_to_add = []
+
+    for att in attachments:
+
+        if att.get('type') == 'file':
+
+            files_to_add.append({
+                "file_id": att['payload'].get('fileId'),
+                "file_name": att.get('filename'),
+                "file_url": att['payload'].get('url'),
+                "message_id": str(msg_id) # сохраняем как строку
+            })
+    
+    if files_to_add:
+
+        save_file_to_batch(batch_key, files_to_add, text, msg_id)
+        restart_timer(batch_key, data)
+
+def restart_timer(batch_key, data):
+
+    if batch_key in active_timers:
+
+        active_timers[batch_key].cancel()
+    
+    t = threading.Timer(60.0, finalize_batch, args=[batch_key, data])
+    active_timers[batch_key] = t
+
+    t.start()
+
+def save_file_to_batch(key, new_files, text, msg_id):
+    current_data = redis_conn.get(key)
+
+    if current_data:
+
+        batch = json.loads(current_data)
+    else:
+
+        batch = {
+            "files": [], 
+            "comment": "", 
+            "has_zayavka": False, 
+            "message_id": str(msg_id)
+        }
+
+    batch["files"].extend(new_files)
+    
+
+    for f in new_files:
+
+        if "заявка" in f["file_name"].lower():
+
+            batch["has_zayavka"] = True
+    
+
+    if text:
+
+        batch["comment"] = text.lower()
+
+    redis_conn.set(key, json.dumps(batch), ex=120)
+
+def update_batch_comment(key, text):
+
+    current_data = redis_conn.get(key)
+
+    if current_data:
+
+        batch = json.loads(current_data)
+        batch["comment"] = text.lower()
+
+        redis_conn.set(key, json.dumps(batch), ex=120)
+
+def finalize_batch(batch_key, original_data):
+    raw_data = redis_conn.get(batch_key)
+
+    if not raw_data:
+
+        return
+    
+    batch = json.loads(raw_data)
+    user_id = get_data.get_sender_user_id(original_data)
+    chat_id = get_data.get_chat_id(original_data)
+    inn_value = db.get_user_inn(user_id)
+
+    files = batch.get("files", [])
+    comment_text = batch.get("comment", "").lower()
+    has_zayavka = batch.get("has_zayavka", False)
+    
+
+    final_chat_comment = None
+    
+
+    if "победитель всеинструменты" in comment_text:
+        final_chat_comment = "Победитель ВсеИнструменты"
+
+    elif any(word in comment_text for word in ["сводная", "свод", "сформируй сводную"]):
+        final_chat_comment = "сводная"
+
+    elif len(files) > 1 and has_zayavka:
+        final_chat_comment = "сводная"
+
+
+    payload = {
+        "source": "max",
+        "chat_id": int(chat_id),
+        "files": [
+            {
+                "file_id": str(f['file_id']),
+                "file_name": str(f['file_name']),
+                "file_url": str(f['file_url']),
+                "message_id": str(f.get('message_id', '0'))
+            } for f in files
+        ],
+        "message_id": str(batch.get("message_id", "0")), # mid из первого сообщения
+        "topic_id": 0,
+        "inn": str(inn_value) if inn_value else "123456789",
+        "report_types": [4]
+    }
+
+    if final_chat_comment:
+        payload["chat_comment"] = final_chat_comment
+
+    success = api.send_to_processing_service(payload)
+
+    if success:
+        mode = final_chat_comment if final_chat_comment else "распознавание"
+        send_message(chat_id, f"Файлы приняты на {mode}. Ожидайте результат.")
+    
+
+    redis_conn.delete(batch_key)
+    active_timers.pop(batch_key, None)
 
 def success_authorization(data, org_name):
 
@@ -211,10 +351,12 @@ def success_authorization(data, org_name):
 
 def check_authorization(data):
 
-    authorized= db.is_user_authorized(get_data.get_recipient_user_id(data))
+    actual_user_id = get_data.get_sender_user_id(data)
+
+    authorized = db.is_user_authorized(actual_user_id)
 
     if authorized:
-       
+        
         body = message(
             f"Вы уже авторизованы.",
             keyboard(
@@ -223,10 +365,10 @@ def check_authorization(data):
         )
 
         _send(get_data.get_chat_id(data), body)
-
         return True
     
     return False
+
 
 def chat_error_response(data):
 
