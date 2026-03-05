@@ -319,6 +319,8 @@ def finalize_batch(batch_key, original_data):
     user_id = get_data.get_sender_user_id(original_data)
     chat_id = get_data.get_chat_id(original_data)
 
+    report_type = db.get_chat_report_type(chat_id)
+
     inn_value = db.get_inn_by_chat(chat_id)
 
     if not inn_value:
@@ -356,7 +358,7 @@ def finalize_batch(batch_key, original_data):
         "message_id": str(batch.get("message_id", "0")), # mid из первого сообщения
         "topic_id": 0,
         "inn": str(inn_value) if inn_value else "123456789",
-        "report_types": [4]
+        "report_types": [report_type]
     }
 
     if final_chat_comment:

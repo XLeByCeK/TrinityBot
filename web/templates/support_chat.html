@@ -4,48 +4,66 @@
 
     <!-- Список чатов -->
     <div class="w-1/3 border-r bg-white overflow-y-auto">
-        <div class="p-4 font-bold border-b">Чаты поддержки</div>
+        <div class="p-4 font-bold border-b bg-gray-50">Чаты поддержки</div>
 
         {% for chat in chats %}
         <a href="{{ url_for('support.chat', chat_id=chat.max_chat_id) }}"
-           class="block p-4 hover:bg-gray-100 border-b
-           {% if chat.max_chat_id == active_chat %}bg-gray-100{% endif %}">
-            <div class="font-semibold">
-                {{ chat.org_name or "Неизвестная организация" }}
+           class="block p-4 hover:bg-blue-50 border-b transition-colors
+           {% if chat.max_chat_id|int == active_chat|int %}bg-blue-100 border-l-4 border-l-blue-600{% endif %}">
+            <div class="font-semibold flex justify-between items-center">
+                <span class="truncate">{{ chat.org_name or "Неизвестная организация" }}</span>
                 {% if chat.support_requested %}
-                    <span class="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">Новый запрос</span>
+                    <span class="ml-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full uppercase">SOS</span>
                 {% endif %}
             </div>
-            <div class="text-xs text-gray-500">
-                Chat ID: {{ chat.max_chat_id }}
+            <div class="text-xs text-gray-500 flex justify-between mt-1">
+                <span>ID: {{ chat.max_chat_id }}</span>
+                {% if chat.max_chat_id|int < 0 %}
+                    <span class="text-blue-600 font-bold">ГРУППА</span>
+                {% endif %}
             </div>
         </a>
         {% endfor %}
     </div>
 
     <!-- Диалог -->
-    <div class="flex-1 flex flex-col bg-gray-50">
+    <div class="flex-1 flex flex-col bg-gray-100">
 
-        <div class="p-4 border-b font-bold bg-white">
-            Чат #{{ active_chat }}
+        <div class="p-4 border-b font-bold bg-white shadow-sm flex justify-between">
+            <span>Чат #{{ active_chat }}</span>
+            {% if active_chat|int < 0 %}
+                <span class="text-gray-400 font-normal">Тип: Групповой чат</span>
+            {% endif %}
         </div>
 
         <!-- Сообщения -->
-        <div class="flex-1 p-4 overflow-y-auto space-y-2">
+        <div id="messages-container" class="flex-1 p-4 overflow-y-auto space-y-4">
             {% for msg in messages %}
-                {% if msg.sender == 'bot' %}
-                    <div class="flex justify-end">
-                        <div class="bg-blue-500 text-white px-4 py-2 rounded-lg max-w-lg">
-                            {{ msg.content }}
+                <div class="flex {% if msg.sender_role == 'bot' %}justify-end{% else %}justify-start{% endif %}">
+                    <div class="max-w-lg">
+                        <!-- Имя отправителя (показываем всегда для групп или для отличия в ЛС) -->
+                        <div class="text-[10px] text-gray-500 mb-1 px-1 flex justify-between gap-4">
+                            <span class="font-bold">
+                                {% if msg.sender_role == 'bot' %}
+                                    Вы (Админ)
+                                {% else %}
+                                    {{ msg.first_name or '' }} {{ msg.last_name or '' }} 
+                                    <small class="font-normal text-gray-400">({{ msg.sender_role }})</small>
+                                {% endif %}
+                            </span>
+                            <span>{{ msg.created_at.strftime('%H:%M') }}</span>
+                        </div>
+                        
+                        <div class="px-4 py-2 rounded-2xl shadow-sm 
+                            {% if msg.sender_role == 'bot' %}
+                                bg-blue-600 text-white rounded-tr-none
+                            {% else %}
+                                bg-white text-gray-800 rounded-tl-none
+                            {% endif %}">
+                            <div class="whitespace-pre-wrap">{{ msg.content }}</div>
                         </div>
                     </div>
-                {% else %}
-                    <div class="flex justify-start">
-                        <div class="bg-white px-4 py-2 rounded-lg shadow max-w-lg">
-                            {{ msg.content }}
-                        </div>
-                    </div>
-                {% endif %}
+                </div>
             {% endfor %}
         </div>
 
@@ -53,14 +71,29 @@
         <form method="post" class="p-4 bg-white border-t flex gap-2">
             <input type="text"
                    name="message"
-                   class="flex-1 border rounded px-4 py-2"
-                   placeholder="Введите сообщение..."
-                   required>
-            <button class="bg-blue-600 text-white px-4 py-2 rounded">
+                   class="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:border-blue-500"
+                   placeholder="Написать ответ..."
+                   required
+                   autocomplete="off">
+            <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full transition-colors">
                 Отправить
             </button>
         </form>
 
     </div>
 </div>
+
+<script>
+    function scrollToBottom() {
+        const container = document.getElementById('messages-container');
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+
+
+    window.onload = scrollToBottom;
+
+
+</script>
 {% endblock %}

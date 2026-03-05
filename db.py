@@ -246,6 +246,8 @@ def is_user_authorized(max_user_id: int):
             else:
                 return False
 
+#-----------WEB---------
+
 def mark_support_requested(chat_id):
 
     with get_conn() as conn:
@@ -255,10 +257,9 @@ def mark_support_requested(chat_id):
             cur.execute("""
                 UPDATE chats SET support_requested = TRUE WHERE max_chat_id = %s
             """, (
-                chat_id
+                chat_id,
             ))
 
-#-----------WEB---------
 
 def get_webuser_by_login(login: str):
 
@@ -391,6 +392,7 @@ def get_chats():
                     c.chat_id,
                     c.max_chat_id,
                     c.created_at,
+                    c.report_type, 
                     o.name AS org_name,
                     COUNT(m.message_id) AS messages_count,
                     MAX(m.received_at) AS last_message_at
@@ -505,23 +507,28 @@ def get_chat_messages(max_chat_id: int):
 
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT
-                    content,
-                    received_at AS created_at,
-                    'user' AS sender
-                FROM messages
-                WHERE max_chat_id = %s
+                SELECT 
+                    m.content, 
+                    m.received_at AS created_at, 
+                    'user' AS sender_role,
+                    u.first_name,
+                    u.last_name
+                FROM messages m
+                LEFT JOIN users u ON m.max_user_id = u.max_user_id
+                WHERE m.max_chat_id = %s
 
                 UNION ALL
 
-                SELECT
-                    content,
-                    sent_at AS created_at,
-                    'bot' AS sender
+                SELECT 
+                    content, 
+                    sent_at AS created_at, 
+                    'bot' AS sender_role,
+                    'Система' AS first_name,
+                    'Админ' AS last_name
                 FROM outgoingmessages
                 WHERE max_chat_id = %s
 
-                ORDER BY created_at
+                ORDER BY created_at ASC
             """, (max_chat_id, max_chat_id))
 
             return cur.fetchall()
@@ -586,3 +593,26 @@ def mark_support_handled(chat_id):
             cur.execute("""
                 UPDATE chats SET support_requested = FALSE WHERE max_chat_id = %s
             """, (chat_id,))
+
+def update_chat_report_type(max_chat_id, report_type):
+
+    with get_conn() as conn:
+
+        with conn.cursor() as cur:
+
+            cur.execute("""
+                UPDATE chats SET report_type = %s WHERE max_chat_id = %s
+            """, (report_type, max_chat_id))
+
+def get_chat_report_type(max_chat_id):
+
+    with get_conn() as conn:
+
+        with conn.cursor() as cur:
+
+            cur.execute("SELECT report_type FROM chats WHERE max_chat_id = %s", (max_chat_id,))
+
+            row = cur.fetchone()
+
+            return row[0] if row else 4
+        

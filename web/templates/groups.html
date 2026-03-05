@@ -6,6 +6,7 @@
         <tr>
           <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Чат</th>
           <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Организация</th>
+          <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Тип отчета</th> <!-- Новая колонка -->
           <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Сообщений</th>
           <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Активность</th>
           <th class="px-4 py-2"></th>
@@ -16,6 +17,22 @@
         <tr class="hover:bg-gray-50">
           <td class="px-4 py-2">{{ c.max_chat_id }}</td>
           <td class="px-4 py-2">{{ c.org_name or "—" }}</td>
+          
+          <!-- Форма для смены типа отчета -->
+          <td class="px-4 py-2">
+            <form action="{{ url_for('groups.update_report_type') }}" method="POST" class="flex items-center space-x-2">
+              <input type="hidden" name="max_chat_id" value="{{ c.max_chat_id }}">
+              <select name="report_type" class="text-sm border rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500">
+                {% for i in range(5) %}
+                  <option value="{{ i }}" {% if c.report_type == i %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-2 rounded transition">
+                OK
+              </button>
+            </form>
+          </td>
+
           <td class="px-4 py-2">{{ c.messages_count }}</td>
           <td class="px-4 py-2">{{ c.last_message_at or "—" }}</td>
           <td class="px-4 py-2">
