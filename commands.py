@@ -42,8 +42,24 @@ def show_menu_btns(data):
 
 def begin_work(data):
 
-    if check_authorization(data):
-        return
+    chat_type = get_data.get_chat_type(data)
+    chat_id = get_data.get_chat_id(data)
+    user_id = get_data.get_sender_user_id(data)
+
+    if chat_type =='chat':
+
+        if db.is_chat_authorized(chat_id):
+
+            _send(chat_id, message("Этот чат уже зарегистрирован за организацией."))
+
+            return
+    else:
+
+        if db.is_user_authorized(user_id):
+
+            _send(chat_id, message("Вы уже авторизованы."))
+
+            return
 
     body = message(
         "Чтобы продолжить, мне нужно зарегистрировать вашу организацию. Введите ИНН (10 цифр):",
@@ -53,7 +69,7 @@ def begin_work(data):
         )
     )
 
-    _send(get_data.get_chat_id(data), body)
+    _send(chat_id, body)
 
 def ask_inn(data):
     
@@ -185,15 +201,24 @@ def trinity_AI_question(data):
 
     _send(get_data.get_chat_id(data), body)
 
-def process_file(data):
+def process_file(data, chat_type):
 
     user_id = get_data.get_sender_user_id(data)
     chat_id = get_data.get_chat_id(data)
     batch_key = f"batch:{user_id}:{chat_id}"
     
-    if not db.is_user_authorized(user_id):
+    if chat_type == 'chat':
 
-        return 
+        if not db.is_chat_authorized(chat_id):
+
+            return 
+    else:
+
+        if not db.is_user_authorized(user_id):
+
+            send_message(chat_id, "Сначала зарегистрируйтесь, введя ИНН.")
+
+            return 
 
     body = data.get('message', {}).get('body', {})
     attachments = body.get('attachments', [])
@@ -291,7 +316,11 @@ def finalize_batch(batch_key, original_data):
     batch = json.loads(raw_data)
     user_id = get_data.get_sender_user_id(original_data)
     chat_id = get_data.get_chat_id(original_data)
-    inn_value = db.get_user_inn(user_id)
+
+    inn_value = db.get_inn_by_chat(chat_id)
+
+    if not inn_value:
+        inn_value = db.get_user_inn(user_id)
 
     files = batch.get("files", [])
     comment_text = batch.get("comment", "").lower()
@@ -352,13 +381,22 @@ def success_authorization(data, org_name):
 def check_authorization(data):
 
     actual_user_id = get_data.get_sender_user_id(data)
+    chat_type = get_data.get_chat_type(data)
+    chat_id = get_data.get_chat_id(data)
 
-    authorized = db.is_user_authorized(actual_user_id)
+    if chat_type == 'chat':
+
+        authorized = db.is_chat_authorized(chat_id)
+        msg = "Этот чат уже зарегистрирован за организацией."
+    else:
+
+        authorized = db.is_user_authorized(actual_user_id)
+        msg = "Вы уже авторизованы."
 
     if authorized:
         
         body = message(
-            f"Вы уже авторизованы.",
+            msg,
             keyboard(
                 [btn_callback("Назад", "back_to_main")]
             )

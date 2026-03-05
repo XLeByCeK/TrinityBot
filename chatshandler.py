@@ -58,7 +58,7 @@ def handle_callback(data):
         CALLBACK_HANDLERS[payload](data)
         
 
-def private_chats(data, update_type, msg_text, attachment_type):
+def private_chats(data, update_type, msg_text, attachment_type, chat_type):
 
     user_id = get_data.get_sender_user_id(data)
     chat_id = get_data.get_chat_id(data)
@@ -123,11 +123,11 @@ def private_chats(data, update_type, msg_text, attachment_type):
             
             if attachment_type == 'file' or is_batching:
 
-                commands.process_file(data)
+                commands.process_file(data, chat_type)
 
                 return   
     
-def group_chats(data, update_type, msg_text, attachment_type):
+def group_chats(data, update_type, msg_text, attachment_type, chat_type):
 
     user_id = get_data.get_sender_user_id(data)
     chat_id = get_data.get_chat_id(data)
@@ -184,7 +184,7 @@ def group_chats(data, update_type, msg_text, attachment_type):
         return
     
 
-    if state == 'default':
+    if state == 'default' or state is None:
 
         if update_type == 'message_created':
             
@@ -192,7 +192,7 @@ def group_chats(data, update_type, msg_text, attachment_type):
             
             if attachment_type == 'file' or is_batching:
 
-                commands.process_file(data)
+                commands.process_file(data, chat_type)
 
                 return   
 

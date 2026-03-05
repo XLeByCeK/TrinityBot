@@ -74,40 +74,39 @@ def api_request(method, path, json=None, files=None):
 def fetch_org_from_fns(inn):
 
     url = f"https://api-fns.ru/api/multinfo?req={inn}&key={FNS_API_KEY}"
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
 
     try:
 
-        resp = session.get(url, timeout=10)
-        resp.raise_for_status()
+        resp = requests.get(url, timeout=10, headers=headers)
+        
+  
+        resp.raise_for_status() 
+        
         data = resp.json()
 
         if 'items' in data and data['items']:
-
             item = data['items'][0]
 
             if 'ЮЛ' in item:
-
                 org_data = item['ЮЛ']
                 name = org_data.get('НаимПолнЮЛ') or org_data.get('НаимСокрЮЛ')
                 is_active = org_data.get('Статус') == 'Действующее'
-
             elif 'ИП' in item:
-
                 org_data = item['ИП']
                 name = org_data.get('ФИОПолн')
                 is_active = org_data.get('Статус') == 'Действующее'
-
             else:
                 return None
 
             return {'name': name, 'is_active': is_active}
-
         return None
 
     except Exception as e:
-
         print(f"Error fetching from FNS API: {e}")
-        
         return None
 
 

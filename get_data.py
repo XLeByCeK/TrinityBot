@@ -78,3 +78,14 @@ def get_chat_id(data):
             .get('chat_id')
             
     )
+
+
+def get_chat_type(data):
+
+    return (
+
+        data.get('message', {})
+            .get('recipient', {})
+            .get('chat_type')
+            
+    )

@@ -42,10 +42,10 @@ def webhook():
     
     if chat_type == 'chat':
         
-        chatshandler.group_chats(data, update_type, msg_text, attachment_type)
+        chatshandler.group_chats(data, update_type, msg_text, attachment_type, chat_type)
     else:
 
-        chatshandler.private_chats(data, update_type, msg_text, attachment_type)
+        chatshandler.private_chats(data, update_type, msg_text, attachment_type, chat_type)
             
 
     return jsonify({'ok': True})

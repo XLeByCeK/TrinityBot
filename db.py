@@ -81,7 +81,32 @@ def create_user(first_name: str, last_name: str, max_user_id: int,):
                 VALUES (%s, %s, %s, NOW())
             """, ( first_name, last_name, max_user_id))
 
+def is_chat_authorized(max_chat_id: int):
 
+    with get_conn() as conn:
+
+        with conn.cursor() as cur:
+
+            cur.execute("SELECT 1 FROM orgschats WHERE max_chat_id = %s", (max_chat_id,))
+
+            return cur.fetchone() is not None
+
+def get_inn_by_chat(max_chat_id: int):
+
+    with get_conn() as conn:
+
+        with conn.cursor() as cur:
+            
+            query = """
+                SELECT o.inn 
+                FROM organizations o
+                JOIN orgschats oc ON o.org_id = oc.org_id
+                WHERE oc.max_chat_id = %s
+                LIMIT 1
+            """
+            cur.execute(query, (max_chat_id,))
+            result = cur.fetchone()
+            return result[0] if result else None
 
 def create_chat(max_chat_id: int):
 
