@@ -333,7 +333,7 @@ def finalize_batch(batch_key, original_data):
     
 
     if "победитель всеинструменты" in comment_text:
-        final_chat_comment = "Победитель ВсеИнструменты"
+        final_chat_comment = "Файлы отправлены на Победитель ВсеИнструменты. Ожидайте результат."
 
     elif any(word in comment_text for word in ["сводная", "свод", "сформируй сводную"]):
         final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
