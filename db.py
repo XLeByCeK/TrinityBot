@@ -21,8 +21,6 @@ def get_conn():
     )
 
 
-
-
 def register_organization(inn: int, data):
     
     fns_data = api.fetch_org_from_fns(inn)

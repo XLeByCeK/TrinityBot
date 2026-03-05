@@ -147,7 +147,7 @@ def group_chats(data, update_type, msg_text, attachment_type, chat_type):
 
         if update_type == "message_created":
 
-            inn = msg_text.strip()
+            inn = msg_text.strip()           
 
             if len(inn) in (10, 12) and inn.isdigit():
 

@@ -211,6 +211,8 @@ def process_file(data, chat_type):
 
         if not db.is_chat_authorized(chat_id):
 
+            send_message(chat_id, "Сначала зарегистрируйте организацию в чате, введя ИНН.")
+
             return 
     else:
 
@@ -259,7 +261,7 @@ def restart_timer(batch_key, data):
 
         active_timers[batch_key].cancel()
     
-    t = threading.Timer(60.0, finalize_batch, args=[batch_key, data])
+    t = threading.Timer(30.0, finalize_batch, args=[batch_key, data])
     active_timers[batch_key] = t
 
     t.start()
@@ -334,10 +336,10 @@ def finalize_batch(batch_key, original_data):
         final_chat_comment = "Победитель ВсеИнструменты"
 
     elif any(word in comment_text for word in ["сводная", "свод", "сформируй сводную"]):
-        final_chat_comment = "сводная"
+        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
 
     elif len(files) > 1 and has_zayavka:
-        final_chat_comment = "сводная"
+        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
 
 
     payload = {
@@ -363,8 +365,8 @@ def finalize_batch(batch_key, original_data):
     success = api.send_to_processing_service(payload)
 
     if success:
-        mode = final_chat_comment if final_chat_comment else "распознавание"
-        send_message(chat_id, f"Файлы приняты на {mode}. Ожидайте результат.")
+        mode = final_chat_comment if final_chat_comment else "Файлы приняты!\n\nВыдача заключений происходит в течение 10-25 минут, последовательно, в зависимости от количества файлов."
+        send_message(chat_id, mode)
     
 
     redis_conn.delete(batch_key)
