@@ -22,11 +22,13 @@
           <td class="px-4 py-2">
             <form action="{{ url_for('groups.update_report_type') }}" method="POST" class="flex items-center space-x-2">
               <input type="hidden" name="max_chat_id" value="{{ c.max_chat_id }}">
-              <select name="report_type" class="text-sm border rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500">
-                {% for i in range(5) %}
-                  <option value="{{ i }}" {% if c.report_type == i %}selected{% endif %}>{{ i }}</option>
-                {% endfor %}
-              </select>
+              <input 
+                  type="number" 
+                  name="report_type" 
+                  value="{{ c.report_type if c.report_type is not none else 4 }}" 
+                  class="w-16 text-sm border rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+                  min="0"
+                >
               <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-2 rounded transition">
                 OK
               </button>
