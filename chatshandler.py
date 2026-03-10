@@ -1,12 +1,9 @@
 from redis_client import redis_conn
-
 import commands
 import get_data
-
 import db
 
 CALLBACK_HANDLERS = {
-
     'begin_work': commands.begin_work,
     'enter_inn': commands.ask_inn,
     'get_report': commands.choose_report,
@@ -27,10 +24,12 @@ def get_state(user_id: int) -> str:
 
     state = redis_conn.get(f"user:{user_id}:state")
 
-    return state or "default"
+    if state:
+
+        return state.decode('utf-8') if isinstance(state, bytes) else state
+    return "default"
 
 def set_state(user_id: int, state: str):
-
     redis_conn.set(f"user:{user_id}:state", state)
 
 def handle_callback(data):
@@ -39,162 +38,72 @@ def handle_callback(data):
     payload = callback.get('payload', {})
     user_id = callback.get('user', {}).get('user_id')
 
-    
+    chat_id = data.get('message', {}).get('recipient', {}).get('chat_id')
+
     if payload == "enter_inn":
-
         set_state(user_id, "awaiting_inn")
-
     elif payload in ("file_question", "trinity_ai_question"):
 
         set_state(user_id, "support_chat")
+        
+        if chat_id:
+            db.mark_support_requested(chat_id)
 
     elif payload == "back_to_main":
-
         set_state(user_id, "default")
 
-    
     if payload in CALLBACK_HANDLERS:
-
         CALLBACK_HANDLERS[payload](data)
-        
 
-def private_chats(data, update_type, msg_text, attachment_type, chat_type):
+def process_state_logic(data, update_type, msg_text, attachment_type, chat_type):
 
     user_id = get_data.get_sender_user_id(data)
     chat_id = get_data.get_chat_id(data)
-
+    
     if update_type == 'message_created':
-
         db.save_incoming_message(data)
 
-    state = get_state(get_data.get_sender_user_id(data))
-
     if update_type == 'message_callback':
-            
         handle_callback(data)
+        return
 
+    state = get_state(user_id)
 
-    if state == "awaiting_inn":
+    if state == "awaiting_inn" and update_type == "message_created":
+        inn = msg_text.strip()
+        if len(inn) in (10, 12) and inn.isdigit():
 
-        if update_type == "message_created":
+            org_id = db.register_organization(inn, data)
 
-            inn = msg_text.strip()
+            if org_id:
+                db.link_user_to_org(user_id, org_id)
+                db.link_org_to_chat(org_id, chat_id)
 
-            if len(inn) in (10, 12) and inn.isdigit():
+                org_name = db.get_organization_name(inn)
 
-                org_id = db.register_organization(inn, data)
-
-                if org_id:
-
-                    db.link_user_to_org(get_data.get_sender_user_id(data), org_id)
-                    db.link_org_to_chat(org_id, get_data.get_chat_id(data))
-
-                    org_name = db.get_organization_name(inn)
-
-                    commands.success_authorization(data, org_name)
-                    commands.show_menu_btns(data)
-
-                else:
-
-                    commands.inn_error_response(data)
+                commands.success_authorization(data, org_name)
+                commands.show_menu_btns(data)
             else:
-
-                commands.send_message(chat_id,"Неверный формат ИНН. Введите 10 или 12 цифр.")
-
-            set_state(get_data.get_sender_user_id(data), "default")
-            
+                commands.inn_error_response(data)
+        else:
+            commands.send_message(chat_id, "Неверный формат ИНН. Введите 10 или 12 цифр.")
+        
+        set_state(user_id, "default")
         return
-    
 
-    if state == "support_chat":
-
+    if state == "support_chat" and update_type == "message_created":
         db.mark_support_requested(chat_id)
-
         commands.send_message(chat_id, "Запрос на консультацию получен. Администратор с вами свяжется.")
-
         return
-    
 
     if state == 'default':
-
         if update_type == 'message_created':
-            
             is_batching = redis_conn.exists(f"batch:{user_id}:{chat_id}")
-            
             if attachment_type == 'file' or is_batching:
-
                 commands.process_file(data, chat_type)
 
-                return   
-    
+def private_chats(data, update_type, msg_text, attachment_type, chat_type):
+    process_state_logic(data, update_type, msg_text, attachment_type, chat_type)
+
 def group_chats(data, update_type, msg_text, attachment_type, chat_type):
-
-    user_id = get_data.get_sender_user_id(data)
-    chat_id = get_data.get_chat_id(data)
-
-    if update_type == 'message_created':
-
-        db.save_incoming_message(data)
-
-    state = get_state(get_data.get_sender_user_id(data))
-
-    if update_type == 'message_callback':
-            
-        handle_callback(data)
-
-
-    if state == "awaiting_inn":
-
-        if update_type == "message_created":
-
-            inn = msg_text.strip()           
-
-            if len(inn) in (10, 12) and inn.isdigit():
-
-                org_id = db.register_organization(inn, data)
-
-                if org_id:
-
-                    db.link_user_to_org(get_data.get_sender_user_id(data), org_id)
-                    db.link_org_to_chat(org_id, get_data.get_chat_id(data))
-
-                    org_name = db.get_organization_name(inn)
-
-                    commands.success_authorization(data, org_name)
-                    commands.show_menu_btns(data)
-
-                else:
-
-                    commands.inn_error_response(data)
-            else:
-
-                commands.send_message(chat_id,"Неверный формат ИНН. Введите 10 или 12 цифр.")
-
-            set_state(get_data.get_sender_user_id(data), "default")
-            
-        return
-    
-
-    if state == "support_chat":
-
-        db.mark_support_requested(chat_id)
-
-        commands.send_message(chat_id, "Запрос на консультацию получен. Администратор с вами свяжется.")
-
-        return
-    
-
-    if state == 'default' or state is None:
-
-        if update_type == 'message_created':
-            
-            is_batching = redis_conn.exists(f"batch:{user_id}:{chat_id}")
-            
-            if attachment_type == 'file' or is_batching:
-
-                commands.process_file(data, chat_type)
-
-                return   
-
-
-        
+    process_state_logic(data, update_type, msg_text, attachment_type, chat_type)
