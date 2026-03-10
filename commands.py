@@ -3,6 +3,10 @@ import get_data
 
 import db
 
+from datetime import datetime
+import pytz
+import holidays 
+
 from redis_client import redis_conn
 
 import threading
@@ -16,6 +20,27 @@ from ui_creator import (
 )
 
 active_timers = {}
+
+MOSCOW_TZ = pytz.timezone('Europe/Moscow')
+RU_HOLIDAYS = holidays.Russia()
+
+def is_working_hours():
+
+    now_msk = datetime.now(MOSCOW_TZ)
+    
+
+    if now_msk.weekday() >= 5:
+        return False
+    
+
+    if now_msk.date() in RU_HOLIDAYS:
+        return False
+    
+
+    if not (9 <= now_msk.hour < 18):
+        return False
+    
+    return True
 
 def _send(chat_id, body):
     api.api_request("POST", f"/messages?chat_id={chat_id}", json=body)
@@ -367,7 +392,18 @@ def finalize_batch(batch_key, original_data):
     success = api.send_to_processing_service(payload)
 
     if success:
-        mode = final_chat_comment if final_chat_comment else "Файлы приняты!\n\nВыдача заключений происходит в течение 10-25 минут, последовательно, в зависимости от количества файлов."
+
+        if not is_working_hours():
+
+            mode = (
+                "Файл принят!\n\n"
+                "Я пока обучаюсь выдавать заключения самостоятельно. На данном этапе мою работу должен проверить эксперт. "
+                "Все заявки, поступившие до 9.00, проверяются после начала рабочего дня с 9.00 МСК."
+            )
+        else:
+
+            mode = final_chat_comment if final_chat_comment else "Файлы приняты!\n\nВыдача заключений происходит в течение 10-25 минут, последовательно, в зависимости от количества файлов."
+        
         send_message(chat_id, mode)
     
 
