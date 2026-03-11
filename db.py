@@ -1,3 +1,4 @@
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash
@@ -6,14 +7,16 @@ import datetime
 import json
 import api
 from typing import Any, List, Optional, Dict
+from dotenv import load_dotenv
 
+load_dotenv()
 
 DB_CONFIG = {
-    "dbname": "trinitybot",
-    "user": "postgres",
-    "password": "",
-    "host": "localhost",
-    "port": 5432
+    "dbname": os.getenv("DB_NAME", "trinitybot"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASSWORD", ""),
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": int(os.getenv("DB_PORT", 5432))
 }
 
 def get_conn():
@@ -35,7 +38,109 @@ def _execute_query(query: str, params: tuple = (), fetch: str = None, use_dict: 
                 return res[0] if res else None
             return None
 
+
+# --- Инициализация и обновление структуры БД ---
+
+def init_db():
+
+    commands = [
+        """
+        CREATE TABLE IF NOT EXISTS organizations (
+            org_id SERIAL PRIMARY KEY,
+            inn BIGINT UNIQUE NOT NULL,
+            name TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            fetched_at TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            user_id SERIAL PRIMARY KEY,
+            max_user_id BIGINT UNIQUE NOT NULL,
+            first_name TEXT,
+            last_name TEXT,
+            created_at TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS chats (
+            chat_id SERIAL PRIMARY KEY,
+            max_chat_id BIGINT UNIQUE NOT NULL,
+            report_type INT DEFAULT 4,
+            support_requested BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP
+        )
+        """,
+        "CREATE TABLE IF NOT EXISTS usersorg (max_user_id BIGINT, org_id INT, registered_at TIMESTAMP, PRIMARY KEY(max_user_id, org_id))",
+        "CREATE TABLE IF NOT EXISTS orgschats (org_id INT, max_chat_id BIGINT, created_at TIMESTAMP, PRIMARY KEY(org_id, max_chat_id))",
+        """
+        CREATE TABLE IF NOT EXISTS messages (
+            message_id SERIAL PRIMARY KEY,
+            max_chat_id BIGINT,
+            max_user_id BIGINT,
+            content TEXT,
+            message_type TEXT,
+            received_at TIMESTAMP,
+            raw_json JSONB
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS construction_objects (
+            object_id SERIAL PRIMARY KEY,
+            max_chat_id BIGINT,
+            name TEXT,
+            address TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS webusers (
+            web_user_id SERIAL PRIMARY KEY,
+            login TEXT UNIQUE,
+            password_hash TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS outgoingmessages (
+            id SERIAL PRIMARY KEY,
+            max_chat_id BIGINT,
+            max_user_id BIGINT,
+            web_user_id INT,
+            content TEXT,
+            sent_at TIMESTAMP
+        )
+        """
+    ]
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+
+            for cmd in commands:
+                cur.execute(cmd)
+            
+
+            alter_queries = [
+                ("chats", "support_requested", "ALTER TABLE chats ADD COLUMN support_requested BOOLEAN DEFAULT FALSE"),
+                ("chats", "report_type", "ALTER TABLE chats ADD COLUMN report_type INT DEFAULT 4"),
+                ("messages", "raw_json", "ALTER TABLE messages ADD COLUMN raw_json JSONB")
+            ]
+
+            for table, column, alter_cmd in alter_queries:
+                cur.execute(f"""
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='{table}' AND column_name='{column}'
+                """)
+                if not cur.fetchone():
+                    cur.execute(alter_cmd)
+                    print(f"Обновлена структура БД: добавлена колонка {column} в таблицу {table}")
+
+        conn.commit()
+
+
+init_db()
+
 # ------------ BOT ------------
+
 
 def register_organization(inn: int, data: Any = None):
     fns_data = api.fetch_org_from_fns(inn)
@@ -164,7 +269,14 @@ def delete_construction_object(object_id: int):
 def get_construction_object_by_id(object_id: int):
     return _execute_query("SELECT * FROM construction_objects WHERE object_id = %s", (object_id,), fetch="one", use_dict=True)
 
+
+
+
+
 # ----------- WEB -----------
+
+
+
 
 def mark_support_requested(chat_id):
     _execute_query("UPDATE chats SET support_requested = TRUE WHERE max_chat_id = %s", (chat_id,))
