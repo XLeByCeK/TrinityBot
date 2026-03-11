@@ -146,6 +146,24 @@ def is_user_authorized(max_user_id: int) -> bool:
     res = _execute_query("SELECT org_id FROM usersorg WHERE max_user_id = %s LIMIT 1", (max_user_id,), fetch="one")
     return res is not None
 
+def add_construction_object(max_chat_id: int, name: str, address: str):
+    _execute_query("""
+        INSERT INTO construction_objects (max_chat_id, name, address)
+        VALUES (%s, %s, %s)
+    """, (max_chat_id, name, address))
+
+def get_construction_objects(max_chat_id: int):
+    return _execute_query("""
+        SELECT object_id, name, address FROM construction_objects 
+        WHERE max_chat_id = %s ORDER BY created_at ASC
+    """, (max_chat_id,), fetch="all", use_dict=True)
+
+def delete_construction_object(object_id: int):
+    _execute_query("DELETE FROM construction_objects WHERE object_id = %s", (object_id,))
+
+def get_construction_object_by_id(object_id: int):
+    return _execute_query("SELECT * FROM construction_objects WHERE object_id = %s", (object_id,), fetch="one", use_dict=True)
+
 # ----------- WEB -----------
 
 def mark_support_requested(chat_id):

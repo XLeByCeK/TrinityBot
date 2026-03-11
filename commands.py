@@ -9,7 +9,9 @@ from redis_client import redis_conn
 import threading
 import json
 
+timer_lock = threading.Lock()
 active_timers = {}
+
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 RU_HOLIDAYS = holidays.Russia()
 
@@ -84,15 +86,17 @@ def trinity_AI_question(data):
 def process_file(data, chat_type):
     user_id = get_data.get_sender_user_id(data)
     chat_id = get_data.get_chat_id(data)
+
     batch_key = f"batch:{user_id}:{chat_id}"
+
 
     if chat_type == 'chat':
         if not db.is_chat_authorized(chat_id):
-            send_message(chat_id, "Сначала зарегистрируйте организацию в чате, введя ИНН.")
+            send_message(chat_id, "Сначала зарегистрируйте организацию...")
             return 
     else:
         if not db.is_user_authorized(user_id):
-            send_message(chat_id, "Сначала зарегистрируйтесь, введя ИНН.")
+            send_message(chat_id, "Сначала зарегистрируйтесь...")
             return 
 
     body = data.get('message', {}).get('body', {})
@@ -100,9 +104,10 @@ def process_file(data, chat_type):
     text = body.get('text', '').strip()
     msg_id = body.get('mid', '0')
 
+
     if not attachments and redis_conn.exists(batch_key):
         update_batch_comment(batch_key, text)
-        restart_timer(batch_key, data)
+        restart_timer(batch_key, chat_id, user_id)
         return
 
     files_to_add = []
@@ -117,25 +122,30 @@ def process_file(data, chat_type):
 
     if files_to_add:
         save_file_to_batch(batch_key, files_to_add, text, msg_id)
-        restart_timer(batch_key, data)
+        restart_timer(batch_key, chat_id, user_id)
 
-def restart_timer(batch_key, data):
-    if batch_key in active_timers:
+def restart_timer(batch_key, chat_id, user_id):
+    with timer_lock:
+        if batch_key in active_timers:
+            active_timers[batch_key].cancel()
 
-        active_timers[batch_key].cancel()
 
-    t = threading.Timer(30.0, finalize_batch, args=[batch_key, data])
-    active_timers[batch_key] = t
-    
-    t.start()
+        t = threading.Timer(30.0, finalize_batch, args=[batch_key, chat_id, user_id])
+        active_timers[batch_key] = t
+        t.start()
+
 
 def save_file_to_batch(key, new_files, text, msg_id):
     current_data = redis_conn.get(key)
-
     if current_data:
-        batch = json.loads(current_data)
+        try:
+            batch = json.loads(current_data)
+        except:
+            batch = None
     else:
+        batch = None
 
+    if not batch:
         batch = {
             "files": [], 
             "comment": "", 
@@ -146,49 +156,121 @@ def save_file_to_batch(key, new_files, text, msg_id):
     batch["files"].extend(new_files)
 
     for f in new_files:
-
-        if "заявка" in f["file_name"].lower():
+        if f.get("file_name") and "заявка" in f["file_name"].lower():
             batch["has_zayavka"] = True
 
-    if text:
 
-        batch["comment"] = text.lower()
+    if text:
+        new_text = text.lower()
+        if batch["comment"] and new_text not in batch["comment"]:
+            batch["comment"] += f" | {new_text}"
+        else:
+            batch["comment"] = new_text
+    
     redis_conn.set(key, json.dumps(batch), ex=120)
 
 def update_batch_comment(key, text):
+
     current_data = redis_conn.get(key)
 
     if current_data:
+        
+        try:
 
-        batch = json.loads(current_data)
-        batch["comment"] = text.lower()
-        redis_conn.set(key, json.dumps(batch), ex=120)
+            batch = json.loads(current_data)
+            new_text = text.lower()
 
-def finalize_batch(batch_key, original_data):
+            if batch["comment"] and new_text not in batch["comment"]:
+                batch["comment"] += f" | {new_text}"
+
+            else:
+                batch["comment"] = new_text
+
+            redis_conn.set(key, json.dumps(batch), ex=120)
+
+        except:
+            pass
+
+def obj_mgmt_main(data):
+
+    _send(get_data.get_chat_id(data), ui_templates.get_objects_mgmt_menu())
+
+def obj_add_start(data):
+
+    chat_id = get_data.get_chat_id(data)
+    user_id = get_data.get_sender_user_id(data)
+
+    from chatshandler import set_state
+
+    set_state(user_id, "awaiting_obj_name")
+    send_message(chat_id, "Укажите наименование объекта")
+
+def obj_delete_list(data):
+
+    chat_id = get_data.get_chat_id(data)
+    objs = db.get_construction_objects(chat_id)
+
+    if not objs:
+
+        send_message(chat_id, "Список объектов пуст.")
+
+        return obj_mgmt_main(data)
+    
+    _send(chat_id, ui_templates.get_objects_delete_list(objs))
+
+def obj_confirm_delete(data, obj_id):
+
+    obj = db.get_construction_object_by_id(obj_id)
+
+    if obj:
+        _send(get_data.get_chat_id(data), ui_templates.get_delete_confirmation(obj['name'], obj_id))
+
+def obj_do_delete(data, obj_id):
+
+    obj = db.get_construction_object_by_id(obj_id)
+
+    if obj:
+        db.delete_construction_object(obj_id)
+        send_message(get_data.get_chat_id(data), f"Удалил объект {obj['name']}")
+
+    obj_mgmt_main(data)
+
+def finalize_batch(batch_key, chat_id, user_id):
+    with timer_lock:
+        active_timers.pop(batch_key, None)
+    
     raw_data = redis_conn.get(batch_key)
-    if not raw_data:
+
+    if not raw_data: 
+        return
+    
+    try:
+        batch = json.loads(raw_data)
+    except:
+        return
+    
+    redis_conn.delete(batch_key)
+    objects = db.get_construction_objects(chat_id)
+
+    if objects:
+ 
+        pending_key = f"pending_files:{chat_id}:{user_id}"
+        redis_conn.set(pending_key, json.dumps(batch), ex=600)
+        
+
+        dummy_data = {'chat_id': chat_id} 
+        _send(chat_id, ui_templates.get_object_selection_for_file(objects))
         return
 
-    batch = json.loads(raw_data)
-    user_id = get_data.get_sender_user_id(original_data)
-    chat_id = get_data.get_chat_id(original_data)
+    send_to_api_with_obj(chat_id, batch)
 
-    report_type = db.get_chat_report_type(chat_id)
-    inn_value = db.get_inn_by_chat(chat_id)
-    if not inn_value:
-        inn_value = db.get_user_inn(user_id)
+def send_to_api_with_obj(chat_id, batch, obj_name=None, obj_adr=None):
 
-    files = batch.get("files", [])
+    files = batch.get("files", []) 
     comment_text = batch.get("comment", "").lower()
     has_zayavka = batch.get("has_zayavka", False)
-
-    final_chat_comment = None
-    if "победитель всеинструменты" in comment_text:
-        final_chat_comment = "Файлы отправлены на Победитель ВсеИнструменты. Ожидайте результат."
-    elif any(word in comment_text for word in ["сводная", "свод", "сформируй сводную"]):
-        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
-    elif len(files) > 1 and has_zayavka:
-        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
+    report_type = db.get_chat_report_type(chat_id)
+    inn_value = db.get_inn_by_chat(chat_id)
 
     payload = {
         "source": "max",
@@ -204,12 +286,25 @@ def finalize_batch(batch_key, original_data):
         "message_id": str(batch.get("message_id", "0")),
         "topic_id": 0,
         "inn": str(inn_value) if inn_value else "123456789",
-        "report_types": [report_type]
+        "report_types": [report_type] if report_type else [],
+        "object_name": obj_name,
+        "object_adr": obj_adr
     }
+
+
+    final_chat_comment = None
+
+    if "победитель всеинструменты" in comment_text:
+        final_chat_comment = "Файлы отправлены на Победитель ВсеИнструменты. Ожидайте результат."
+    elif any(word in comment_text for word in ["сводная", "свод", "сформируй сводную"]):
+        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
+    elif len(files) > 1 and has_zayavka:
+        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
 
     if final_chat_comment:
         payload["chat_comment"] = final_chat_comment
 
+    print(f"DEBUG: Sending payload to API: {json.dumps(payload, ensure_ascii=False)}")
     success = api.send_to_processing_service(payload)
 
     if success:
@@ -219,13 +314,14 @@ def finalize_batch(batch_key, original_data):
             mode = ("Файл принят!\n\nЯ пока обучаюсь выдавать заключения самостоятельно. "
                     "На данном этапе мою работу должен проверить эксперт. Все заявки, "
                     "поступившие до 9.00, проверяются после начала рабочего дня с 9.00 МСК.")
+            
         else:
 
-            mode = final_chat_comment if final_chat_comment else "Файлы приняты!\n\nВыдача заключений происходит в течение 10-25 минут, последовательно, в зависимости от количества файлов."
-        send_message(chat_id, mode)
+            mode = final_chat_comment if final_chat_comment else "Файлы приняты!\n\nВыдача заключений происходит в течение 10-25 минут."
 
-    redis_conn.delete(batch_key)
-    active_timers.pop(batch_key, None)
+        send_message(chat_id, mode)
+    else: 
+        send_message(chat_id, "Произошла ошибка при отправке файлов. Попробуйте позже.")
 
 def success_authorization(data, org_name):
     _send(get_data.get_chat_id(data), ui_templates.get_success_auth_text(org_name))

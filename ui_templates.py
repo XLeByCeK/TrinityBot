@@ -13,6 +13,7 @@ def get_main_menu():
         "Для дальнейшей работы выберите нужный пункт меню:",
         keyboard(
             [btn_callback("Начать работу", "begin_work")],
+            [btn_callback("Объекты строительства", "obj_mgmt_main")],
             [btn_callback("Получить отчет", "get_report")],
             [btn_callback("О Тринити", "about_trinity")],
             [btn_callback("Инструкции", "instructions")],
@@ -148,3 +149,35 @@ def get_success_auth_text(org_name):
                 "Теперь ценообразование Ваших закупок будет под надёжной защитой искусственного интеллекта.\n"
                 "Пожалуйста, выкладывайте файлы Ваших тендерных протоколов."
     }
+
+def get_objects_mgmt_menu():
+    return message(
+        "Управление объектами строительства:",
+        keyboard(
+            [btn_callback("Добавить объект", "obj_add_start")],
+            [btn_callback("Удалить объект", "obj_delete_list")],
+            [btn_callback("Назад", "back_to_main")]
+        )
+    )
+
+def get_objects_delete_list(objects):
+    buttons = []
+    for obj in objects:
+        buttons.append([btn_callback(obj['name'], f"obj_confirm_del_{obj['object_id']}")])
+    buttons.append([btn_callback("Назад", "obj_mgmt_main")])
+    return message("Выберите объект для удаления:", keyboard(*buttons))
+
+def get_delete_confirmation(obj_name, obj_id):
+    return message(
+        f"Удалить объект {obj_name}?",
+        keyboard(
+            [btn_callback("Да", f"obj_do_delete_{obj_id}"), btn_callback("Нет", "obj_delete_list")]
+        )
+    )
+
+def get_object_selection_for_file(objects):
+    buttons = []
+    for obj in objects:
+        buttons.append([btn_callback(obj['name'], f"file_target_obj_{obj['object_id']}")])
+    buttons.append([btn_callback("Без объекта", "file_skip_obj")])
+    return message("Укажите объект строительства:", keyboard(*buttons))
