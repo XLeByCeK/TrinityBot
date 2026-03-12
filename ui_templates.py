@@ -5,21 +5,30 @@ from ui_creator import (
     btn_link
 )
 
-def get_main_menu():
+def get_main_menu(is_authorized=False):
+
+    buttons = []
+    
+
+    if not is_authorized:
+        buttons.append([btn_callback("Начать работу", "begin_work")])
+    
+
+    buttons.extend([
+        [btn_callback("Объекты строительства", "obj_mgmt_main")],
+        [btn_callback("Получить отчет", "get_report")],
+        [btn_callback("О Тринити", "about_trinity")],
+        [btn_callback("Инструкции", "instructions")],
+        [btn_callback("Консультации", "consultations")],
+        [btn_callback("Заключить договор", "sign_contract")]
+    ])
+
     return message(
         "Привет, меня зовут Trinity.\n"
         "Вам предоставлены права администратора.\n"
         "Добавляйте коллег — они смогут загружать закупочные документы.\n"
         "Для дальнейшей работы выберите нужный пункт меню:",
-        keyboard(
-            [btn_callback("Начать работу", "begin_work")],
-            [btn_callback("Объекты строительства", "obj_mgmt_main")],
-            [btn_callback("Получить отчет", "get_report")],
-            [btn_callback("О Тринити", "about_trinity")],
-            [btn_callback("Инструкции", "instructions")],
-            [btn_callback("Консультации", "consultations")],
-            [btn_callback("Заключить договор", "sign_contract")]
-        )
+        keyboard(*buttons) 
     )
 
 def get_begin_work_menu():
@@ -179,5 +188,4 @@ def get_object_selection_for_file(objects):
     buttons = []
     for obj in objects:
         buttons.append([btn_callback(obj['name'], f"file_target_obj_{obj['object_id']}")])
-    buttons.append([btn_callback("Без объекта", "file_skip_obj")])
     return message("Укажите объект строительства:", keyboard(*buttons))

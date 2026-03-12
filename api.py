@@ -133,3 +133,16 @@ def send_to_processing_service(payload):
         
         print(f"Ошибка при подключении к внешнему API: {e}")
         return False  
+    
+def get_russian_day_type(date_str):
+    
+    url = f'https://isdayoff.ru/{date_str}'
+    try:
+
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return response.text
+        return None
+    except Exception as e:
+        print(f"Ошибка при запросе к производственному календарю: {e}")
+        return None

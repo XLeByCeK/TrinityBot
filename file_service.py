@@ -16,15 +16,22 @@ def handle_file_upload(data, chat_type, user_id, chat_id):
         send_message(chat_id, "Сначала зарегистрируйте организацию...")
         return
 
+
+    message = data.get('message', {})
+    body = message.get('body', {})
+    sender = message.get('sender', {})
+
     body = data.get('message', {}).get('body', {})
     attachments = body.get('attachments', [])
     text = body.get('text', '').strip()
     msg_id = body.get('mid', '0')
+    user_name = sender.get('name', 'Неизвестный пользователь')
+
     batch_key = f"batch:{user_id}:{chat_id}"
 
 
     if not attachments and redis_conn.exists(batch_key):
-        _update_batch_data(batch_key, text=text)
+        _update_batch_data(batch_key, text=text, user_name=user_name)
         _restart_timer(batch_key, chat_id, user_id)
         return
 
@@ -37,10 +44,10 @@ def handle_file_upload(data, chat_type, user_id, chat_id):
     } for att in attachments if att.get('type') == 'file']
 
     if files:
-        _update_batch_data(batch_key, files=files, text=text, msg_id=msg_id)
+        _update_batch_data(batch_key, files=files, text=text, msg_id=msg_id, user_name=user_name)
         _restart_timer(batch_key, chat_id, user_id)
 
-def _update_batch_data(key, files=None, text=None, msg_id='0'):
+def _update_batch_data(key, files=None, text=None, msg_id='0', user_name=None):
     raw = redis_conn.get(key)
     try:
         batch = json.loads(raw) if raw else None
@@ -52,8 +59,13 @@ def _update_batch_data(key, files=None, text=None, msg_id='0'):
             "files": [], 
             "comment": "", 
             "has_zayavka": False, 
-            "message_id": str(msg_id)
+            "message_id": str(msg_id),
+            "user_name": user_name  
         }
+    
+
+    if user_name:
+        batch["user_name"] = user_name
     
     if files:
         batch["files"].extend(files)
@@ -106,10 +118,27 @@ def send_batch_to_api(chat_id, batch, obj_name=None, obj_adr=None):
     report_type = db.get_chat_report_type(chat_id)
     inn_value = db.get_inn_by_chat(chat_id)
 
+    final_chat_comment = None
+    if "победитель всеинструменты" in comment_text:
+        final_chat_comment = "Файлы отправлены на Победитель ВсеИнструменты. Ожидайте результат."
+    elif any(word in comment_text for word in ["сводная", "свод", "сформируй сводную"]):
+        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
+    elif has_zayavka:
+        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
+
+
 
     payload = {
         "source": "max",
+        "max_bot_id": "1",  
         "chat_id": int(chat_id),
+        "topic_id": 0,
+        "message_id": str(batch.get("message_id", "0")),
+        "inn": str(inn_value) if inn_value else "7802348846", 
+        
+        "report_type": report_type if report_type else 1, 
+        "report_types": [report_type] if report_type else [4], 
+        
         "files": [
             {
                 "file_id": str(f['file_id']),
@@ -118,24 +147,16 @@ def send_batch_to_api(chat_id, batch, obj_name=None, obj_adr=None):
                 "message_id": str(f.get('message_id', '0'))
             } for f in files
         ],
-        "message_id": str(batch.get("message_id", "0")),
-        "topic_id": 0, 
-        "inn": str(inn_value) if inn_value else "123456789",
-        "report_types": [report_type] if report_type else [],
+        
         "object_name": obj_name,
-        "object_adr": obj_adr
+        "object_adr": obj_adr,
+        "chat_comment": final_chat_comment,
+        
+
+        "user_name": batch.get("user_name"),
+        "reply_to_message_id": None,
+        "model": None
     }
-
-    final_chat_comment = None
-    if "победитель всеинструменты" in comment_text:
-        final_chat_comment = "Файлы отправлены на Победитель ВсеИнструменты. Ожидайте результат."
-    elif any(word in comment_text for word in ["сводная", "свод", "сформируй сводную"]):
-        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
-    elif len(files) > 1 and has_zayavka:
-        final_chat_comment = "Сформирую сводную таблицу для списка КП. Ожидайте результат."
-
-    if final_chat_comment:
-        payload["chat_comment"] = final_chat_comment
 
     success = api.send_to_processing_service(payload)
 
@@ -150,3 +171,4 @@ def send_batch_to_api(chat_id, batch, obj_name=None, obj_adr=None):
     else:
 
         send_message(chat_id, "Произошла ошибка при отправке файлов. Попробуйте позже.")
+

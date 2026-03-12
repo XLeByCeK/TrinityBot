@@ -11,13 +11,22 @@ def send_message(chat_id, text):
     bot_utils.send_message(chat_id, text)
 
 
-def show_menu_btns(data): _send_ui(data, ui_templates.get_main_menu)
+def show_menu_btns(data):
+
+    user_id = get_data.get_sender_user_id(data)
+    chat_id = get_data.get_chat_id(data)
+    chat_type = get_data.get_chat_type(data)
+
+
+    if chat_type == 'chat':
+        is_auth = db.is_chat_authorized(chat_id)
+    else:
+        is_auth = db.is_user_authorized(user_id)
+
+
+    _send_ui(data, ui_templates.get_main_menu, is_auth)
 
 def check_authorization(data):
-    """
-    Проверяет, авторизован ли чат или пользователь.
-    Если авторизован — отправляет сообщение об этом и возвращает True.
-    """
     actual_user_id = get_data.get_sender_user_id(data)
     chat_type = get_data.get_chat_type(data)
     chat_id = get_data.get_chat_id(data)

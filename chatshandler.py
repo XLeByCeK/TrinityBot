@@ -82,17 +82,6 @@ def handle_callback(data):
             commands.send_to_api_with_obj(chat_id, batch, obj['name'], obj['address'])
             redis_conn.delete(pending_key)
 
-    elif payload == "file_skip_obj":
-
-        pending_key = f"pending_files:{chat_id}:{user_id}"
-        pending_raw = redis_conn.get(pending_key)
-
-        if pending_raw:
-
-            batch = json.loads(pending_raw.decode('utf-8') if isinstance(pending_raw, bytes) else pending_raw)
-            commands.send_to_api_with_obj(chat_id, batch)
-            redis_conn.delete(pending_key)
-
     if payload in CALLBACK_HANDLERS:
         CALLBACK_HANDLERS[payload](data)
 
